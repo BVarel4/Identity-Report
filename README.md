@@ -399,19 +399,42 @@ El proyecto convierte esa base automaticamente a la URL de consola correcta para
 
 Esta variable controla el nombre oficial del Excel final orientado al cliente.
 
+Importante:
+
+- debes revisarla y cambiarla en cada cliente igual que `FALCON_TARGET_DOMAIN`
+- no conviene dejar valores genericos como `Cliente`, `Test`, `Demo` o similares
+- en entorno MSSP, este valor debe tratarse como parte de la identidad del entregable
+
 Recomendacion:
 
-- usar un nombre corto, profesional y estable
+- usar preferiblemente solo el nombre corto del cliente o del entregable
 - evitar palabras como `final`, `draft`, `test` o timestamps manuales
+- evitar repetir `Identity_Risk_Assessment` si ya quieres que el proyecto lo agregue por ti
 - pensar el valor como la etiqueta comercial del entregable
 
 Ejemplos validos:
 
-- `ACME_Identity_Risk_Assessment`
-- `Cliente_XYZ_Identity_Report`
-- `VADER_LOCAL_Identity_Assessment`
+- `ACME`
+- `Cliente_XYZ`
+- `VADER_LOCAL`
+- `Soluciones_Cuatroochenta`
+
+El proyecto construye por defecto nombres como:
+
+- `Identity_Risk_Assessment_ACME_2026-04-20.xlsx`
+
+Si prefieres pasar un nombre ya completo, el proyecto intentara respetarlo sin duplicar el prefijo. Por ejemplo:
+
+- `FALCON_DELIVERABLE_NAME=Cliente_Identity_Risk_Assessment`
+- salida: `Cliente_Identity_Risk_Assessment_2026-04-20.xlsx`
 
 Si no defines `FALCON_DELIVERABLE_NAME`, el proyecto usara `FALCON_TARGET_DOMAIN` como fallback.
+
+Mala practica:
+
+- dejar `FALCON_TARGET_DOMAIN` apuntando a un cliente y `FALCON_DELIVERABLE_NAME` con el nombre de otro
+- reutilizar el mismo `FALCON_DELIVERABLE_NAME` para todos los clientes
+- usar placeholders genericos del archivo `.env.example` en una corrida real
 
 ### Ejemplo en PowerShell
 
@@ -419,7 +442,7 @@ Si no defines `FALCON_DELIVERABLE_NAME`, el proyecto usara `FALCON_TARGET_DOMAIN
 $env:FALCON_CLIENT_ID="TU_CLIENT_ID"
 $env:FALCON_CLIENT_SECRET="TU_CLIENT_SECRET"
 $env:FALCON_TARGET_DOMAIN="cliente.local"
-$env:FALCON_DELIVERABLE_NAME="Cliente_Identity_Risk_Assessment"
+$env:FALCON_DELIVERABLE_NAME="ACME"
 $env:FALCON_PAGE_SIZE="1000"
 $env:FALCON_OUTPUT_DIR="output"
 $env:FALCON_REPORT_NAME="identity_risk_report"
@@ -674,6 +697,7 @@ Buenas practicas:
 
 - usar una sesion PowerShell nueva por cliente;
 - validar siempre `FALCON_TARGET_DOMAIN` antes de ejecutar;
+- validar siempre `FALCON_DELIVERABLE_NAME` antes de ejecutar;
 - revisar `FALCON_BASE_URL` segun la region correcta;
 - no reutilizar archivos de `output/runs/` como insumo de otro cliente;
 - no compartir ni versionar resultados reales del tenant.
@@ -694,6 +718,7 @@ En PowerShell puedes limpiar la sesion actual asi:
 Remove-Item Env:FALCON_CLIENT_ID -ErrorAction SilentlyContinue
 Remove-Item Env:FALCON_CLIENT_SECRET -ErrorAction SilentlyContinue
 Remove-Item Env:FALCON_TARGET_DOMAIN -ErrorAction SilentlyContinue
+Remove-Item Env:FALCON_DELIVERABLE_NAME -ErrorAction SilentlyContinue
 Remove-Item Env:FALCON_PAGE_SIZE -ErrorAction SilentlyContinue
 Remove-Item Env:FALCON_OUTPUT_DIR -ErrorAction SilentlyContinue
 Remove-Item Env:FALCON_REPORT_NAME -ErrorAction SilentlyContinue

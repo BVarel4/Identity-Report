@@ -298,11 +298,28 @@ def sanitize_filename_component(value: str) -> str:
     return normalized or "unknown"
 
 
+def build_deliverable_stem(deliverable_name: str) -> str:
+    """Normalize a client-facing deliverable label without duplicating report prefixes."""
+    label = sanitize_filename_component(deliverable_name)
+    normalized = label.lower()
+    existing_report_markers = (
+        "identity_risk_assessment",
+        "identity_report",
+        "identity_assessment",
+        "identity_protection_report",
+    )
+
+    if any(marker in normalized for marker in existing_report_markers):
+        return label
+
+    return f"Identity_Risk_Assessment_{label}"
+
+
 def build_final_report_path(project_root: Path, deliverable_name: str) -> Path:
     """Build a client-facing deliverable path with date-based versioning."""
     delivery_date = datetime.now().strftime("%Y-%m-%d")
-    label = sanitize_filename_component(deliverable_name)
-    stem = f"Identity_Risk_Assessment_{label}_{delivery_date}"
+    deliverable_stem = build_deliverable_stem(deliverable_name)
+    stem = f"{deliverable_stem}_{delivery_date}"
     candidate = project_root / f"{stem}.xlsx"
 
     if not candidate.exists():
