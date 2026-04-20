@@ -16,6 +16,8 @@ venv/
 # Project outputs
 output/
 Identity_Protection_Report_*_FINAL.xlsx
+Identity_Risk_Assessment_*.xlsx
+*_Identity_Risk_Assessment_*.xlsx
 
 # IDE / editor
 .vscode/

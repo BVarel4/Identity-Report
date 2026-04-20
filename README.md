@@ -176,12 +176,23 @@ Define al menos:
 - `FALCON_CLIENT_SECRET`
 - `FALCON_TARGET_DOMAIN`
 
+Adicional recomendado para una entrega formal:
+
+- `FALCON_DELIVERABLE_NAME`
+
+Importante:
+
+- revisa `FALCON_DELIVERABLE_NAME` en cada cliente igual que `FALCON_TARGET_DOMAIN`
+- no uses placeholders genericos como `Cliente`, `Test` o `Demo` en una corrida real
+- este valor define el nombre oficial del Excel que probablemente compartiras con el cliente
+
 Ejemplo recomendado:
 
 ```powershell
 $env:FALCON_CLIENT_ID="TU_CLIENT_ID"
 $env:FALCON_CLIENT_SECRET="TU_CLIENT_SECRET"
 $env:FALCON_TARGET_DOMAIN="cliente.local"
+$env:FALCON_DELIVERABLE_NAME="ACME"
 $env:FALCON_PAGE_SIZE="1000"
 $env:FALCON_OUTPUT_DIR="output"
 $env:FALCON_REPORT_NAME="identity_risk_report"
@@ -277,12 +288,23 @@ Define al menos:
 - `FALCON_CLIENT_SECRET`
 - `FALCON_TARGET_DOMAIN`
 
+Adicional recomendado para una entrega formal:
+
+- `FALCON_DELIVERABLE_NAME`
+
+Importante:
+
+- revisa `FALCON_DELIVERABLE_NAME` en cada cliente igual que `FALCON_TARGET_DOMAIN`
+- no reutilices el mismo nombre comercial entre clientes distintos
+- en desarrollo tambien conviene dejarlo correcto para validar desde temprano el nombre final del entregable
+
 Variables recomendadas para una corrida normal:
 
 ```powershell
 $env:FALCON_CLIENT_ID="TU_CLIENT_ID"
 $env:FALCON_CLIENT_SECRET="TU_CLIENT_SECRET"
 $env:FALCON_TARGET_DOMAIN="cliente.local"
+$env:FALCON_DELIVERABLE_NAME="ACME"
 $env:FALCON_PAGE_SIZE="1000"
 $env:FALCON_OUTPUT_DIR="output"
 $env:FALCON_REPORT_NAME="identity_risk_report"
@@ -417,7 +439,6 @@ Ejemplos validos:
 - `ACME`
 - `Cliente_XYZ`
 - `VADER_LOCAL`
-- `Soluciones_Cuatroochenta`
 
 El proyecto construye por defecto nombres como:
 
