@@ -364,6 +364,7 @@ El proyecto usa variables de entorno.
 
 ### Variables opcionales
 
+- `FALCON_DELIVERABLE_NAME`
 - `FALCON_PAGE_SIZE`
 - `FALCON_OUTPUT_DIR`
 - `FALCON_REPORT_NAME`
@@ -394,12 +395,31 @@ El proyecto convierte esa base automaticamente a la URL de consola correcta para
 - `https://api.crowdstrike.com` -> `https://falcon.crowdstrike.com`
 - `https://api.us-2.crowdstrike.com` -> `https://falcon.us-2.crowdstrike.com`
 
+### Recomendacion para `FALCON_DELIVERABLE_NAME`
+
+Esta variable controla el nombre oficial del Excel final orientado al cliente.
+
+Recomendacion:
+
+- usar un nombre corto, profesional y estable
+- evitar palabras como `final`, `draft`, `test` o timestamps manuales
+- pensar el valor como la etiqueta comercial del entregable
+
+Ejemplos validos:
+
+- `ACME_Identity_Risk_Assessment`
+- `Cliente_XYZ_Identity_Report`
+- `VADER_LOCAL_Identity_Assessment`
+
+Si no defines `FALCON_DELIVERABLE_NAME`, el proyecto usara `FALCON_TARGET_DOMAIN` como fallback.
+
 ### Ejemplo en PowerShell
 
 ```powershell
 $env:FALCON_CLIENT_ID="TU_CLIENT_ID"
 $env:FALCON_CLIENT_SECRET="TU_CLIENT_SECRET"
 $env:FALCON_TARGET_DOMAIN="cliente.local"
+$env:FALCON_DELIVERABLE_NAME="Cliente_Identity_Risk_Assessment"
 $env:FALCON_PAGE_SIZE="1000"
 $env:FALCON_OUTPUT_DIR="output"
 $env:FALCON_REPORT_NAME="identity_risk_report"
@@ -499,14 +519,23 @@ Estos archivos sirven como trazabilidad tecnica, auditoria y soporte para evoluc
 El Excel final se genera fuera de `output/`, en la raiz del proyecto, con un nombre profesional:
 
 ```text
-Identity_Protection_Report_<dominio>_<timestamp>_FINAL.xlsx
+Identity_Risk_Assessment_<deliverable_name>_<YYYY-MM-DD>.xlsx
 ```
 
 Esto permite:
 
-- identificar rapidamente el reporte entregable;
-- conservar multiples corridas sin sobreescritura;
+- identificar rapidamente el reporte entregable con un nombre apto para cliente;
+- conservar multiples corridas sin sobreescritura mediante versionado automatico;
 - separar el entregable del material intermedio de analisis.
+
+Si ya existe un archivo con el mismo nombre para la misma fecha, el proyecto genera:
+
+```text
+Identity_Risk_Assessment_<deliverable_name>_<YYYY-MM-DD>_v2.xlsx
+Identity_Risk_Assessment_<deliverable_name>_<YYYY-MM-DD>_v3.xlsx
+```
+
+Esto evita sobreescritura sin obligarte a exponer timestamps tecnicos en el nombre del entregable.
 
 <details>
 <summary><strong>Retencion de artefactos sensibles</strong></summary>
@@ -627,7 +656,7 @@ En las hojas de correlacion se usa la misma logica bajo el nombre `Severidad mas
 
 Orden sugerido para un analista:
 
-1. abrir el archivo `Identity_Protection_Report_<dominio>_<timestamp>_FINAL.xlsx`
+1. abrir el archivo `Identity_Risk_Assessment_<deliverable_name>_<YYYY-MM-DD>.xlsx`
 2. revisar `Resumen Ejecutivo`
 3. revisar `Rutas de Ataque`
 4. revisar `Correlacion Ciclo Vida`

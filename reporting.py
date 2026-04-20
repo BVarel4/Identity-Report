@@ -298,6 +298,24 @@ def sanitize_filename_component(value: str) -> str:
     return normalized or "unknown"
 
 
+def build_final_report_path(project_root: Path, deliverable_name: str) -> Path:
+    """Build a client-facing deliverable path with date-based versioning."""
+    delivery_date = datetime.now().strftime("%Y-%m-%d")
+    label = sanitize_filename_component(deliverable_name)
+    stem = f"Identity_Risk_Assessment_{label}_{delivery_date}"
+    candidate = project_root / f"{stem}.xlsx"
+
+    if not candidate.exists():
+        return candidate
+
+    version = 2
+    while True:
+        candidate = project_root / f"{stem}_v{version}.xlsx"
+        if not candidate.exists():
+            return candidate
+        version += 1
+
+
 def apply_artifact_retention(
     artifact_mode: str,
     run_dir: Path,
@@ -382,12 +400,10 @@ def save_report_outputs(
     timestamp = get_timestamp()
     base_name = f"{settings.report_name}_{timestamp}"
     run_dir = ensure_output_dir(output_dir / "runs" / base_name)
-    final_report_name = (
-        f"Identity_Protection_Report_"
-        f"{sanitize_filename_component(settings.target_domain)}_"
-        f"{timestamp}_FINAL.xlsx"
+    final_report_path = build_final_report_path(
+        project_root=output_dir.parent,
+        deliverable_name=settings.deliverable_name,
     )
-    final_report_path = output_dir.parent / final_report_name
     correlated_parsed_risks = enrich_parsed_risks_with_entity_correlation(parsed_risks)
     enriched_parsed_risks = enrich_parsed_risks_with_actionability(correlated_parsed_risks)
 

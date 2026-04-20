@@ -15,6 +15,7 @@ class Settings:
     client_id: str
     client_secret: str
     target_domain: str
+    deliverable_name: str
     page_size: int
     output_dir: Path
     report_name: str
@@ -57,6 +58,7 @@ def load_settings(validate: bool = True) -> Settings:
         client_id=os.getenv("FALCON_CLIENT_ID", "").strip(),
         client_secret=os.getenv("FALCON_CLIENT_SECRET", "").strip(),
         target_domain=os.getenv("FALCON_TARGET_DOMAIN", "").strip(),
+        deliverable_name=os.getenv("FALCON_DELIVERABLE_NAME", "").strip(),
         page_size=int(os.getenv("FALCON_PAGE_SIZE", "1000")),
         output_dir=Path(os.getenv("FALCON_OUTPUT_DIR", "output")).resolve(),
         report_name=os.getenv("FALCON_REPORT_NAME", "identity_risk_report").strip(),
@@ -70,5 +72,19 @@ def load_settings(validate: bool = True) -> Settings:
 
     if validate:
         settings.validate()
+
+    if not settings.deliverable_name:
+        settings = Settings(
+            client_id=settings.client_id,
+            client_secret=settings.client_secret,
+            target_domain=settings.target_domain,
+            deliverable_name=settings.target_domain,
+            page_size=settings.page_size,
+            output_dir=settings.output_dir,
+            report_name=settings.report_name,
+            sample_limit_per_risk=settings.sample_limit_per_risk,
+            falcon_base_url=settings.falcon_base_url,
+            artifact_mode=settings.artifact_mode,
+        )
 
     return settings
