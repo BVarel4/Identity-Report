@@ -1,8 +1,11 @@
+"""Audit collection for unsupported risks, parser failures and raw samples."""
+
 from collections import defaultdict
 from typing import Any
 
 
 class AuditCollector:
+    """Collect audit artifacts without interrupting the main reporting flow."""
     def __init__(self, sample_limit_per_risk: int = 3):
         self.sample_limit_per_risk = sample_limit_per_risk
         self.unknown_risk_types = defaultdict(int)
@@ -166,11 +169,34 @@ class AuditCollector:
         risk_type: str,
         risk_factor: dict,
     ) -> tuple[bool, str]:
-        if risk_type == "HAS_ATTACK_PATH":
+        """Apply lightweight schema checks for high-value risk structures."""
+        typename = str(risk_factor.get("__typename", "") or "")
+
+        if not str(risk_factor.get("type", "") or ""):
+            return False, "Risk factor without type"
+
+        if not typename:
+            return False, "Risk factor without __typename"
+
+        expected_typenames = {
+            "HAS_ATTACK_PATH": "AttackPathBasedRiskFactor",
+            "STEALTHY_PRIVILEGES": "AttackPathBasedRiskFactor",
+            "DUPLICATE_PASSWORD": "DuplicatePasswordRiskEntityFactor",
+            "RISKY_LINKED_ACCOUNT": "LinkedAccountsRiskEntityFactor",
+            "CERTIFICATE_TEMPLATE_ALLOWS_AUTHENTICATION_AS_ANY_DOMAIN_USER": "CertificateTemplateAuthenticationBasedRiskFactor",
+        }
+        expected_typename = expected_typenames.get(risk_type)
+        if expected_typename and typename != expected_typename:
+            return False, (
+                f"{risk_type} expected __typename {expected_typename} "
+                f"but received {typename}"
+            )
+
+        if typename == "AttackPathBasedRiskFactor":
             if "attackPath" not in risk_factor:
-                return False, "HAS_ATTACK_PATH without attackPath"
+                return False, f"{risk_type} without attackPath"
 
             if not isinstance(risk_factor.get("attackPath"), list):
-                return False, "HAS_ATTACK_PATH attackPath is not a list"
+                return False, f"{risk_type} attackPath is not a list"
 
         return True, ""

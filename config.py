@@ -1,10 +1,17 @@
+"""Central configuration and environment-driven settings for the pipeline."""
+
 import os
 from dataclasses import dataclass
 from pathlib import Path
 
+PROJECT_AUTHOR = "Bryan Varela Vargas"
+PROJECT_NICKNAME = "Aka. W4rded"
+PROJECT_SIGNATURE = f"{PROJECT_AUTHOR} ({PROJECT_NICKNAME})"
+
 
 @dataclass(frozen=True)
 class Settings:
+    """Runtime settings required to query Falcon and generate the report."""
     client_id: str
     client_secret: str
     target_domain: str
@@ -13,8 +20,10 @@ class Settings:
     report_name: str
     sample_limit_per_risk: int
     falcon_base_url: str
+    artifact_mode: str
 
     def validate(self) -> None:
+        """Validate required values and supported execution modes."""
         missing = []
 
         if not self.client_id:
@@ -36,8 +45,14 @@ class Settings:
         if self.sample_limit_per_risk <= 0:
             raise ValueError("FALCON_SAMPLE_LIMIT_PER_RISK debe ser mayor que 0")
 
+        if self.artifact_mode not in {"final_only", "standard", "debug"}:
+            raise ValueError(
+                "FALCON_ARTIFACT_MODE debe ser uno de: final_only, standard, debug"
+            )
+
 
 def load_settings(validate: bool = True) -> Settings:
+    """Load settings from environment variables and optionally validate them."""
     settings = Settings(
         client_id=os.getenv("FALCON_CLIENT_ID", "").strip(),
         client_secret=os.getenv("FALCON_CLIENT_SECRET", "").strip(),
@@ -48,8 +63,9 @@ def load_settings(validate: bool = True) -> Settings:
         sample_limit_per_risk=int(os.getenv("FALCON_SAMPLE_LIMIT_PER_RISK", "3")),
         falcon_base_url=os.getenv(
             "FALCON_BASE_URL",
-            "https://falcon.crowdstrike.com",
+            "https://api.crowdstrike.com",
         ).rstrip("/"),
+        artifact_mode=os.getenv("FALCON_ARTIFACT_MODE", "final_only").strip().lower(),
     )
 
     if validate:

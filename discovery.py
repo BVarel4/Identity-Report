@@ -1,11 +1,15 @@
+"""CrowdStrike GraphQL access layer with automatic pagination support."""
+
 from collections import Counter
 from typing import Any
 
 from config import Settings
 from queries import DETAIL_QUERY, DISCOVERY_QUERY
+from utils import print_progress, print_section, print_status
 
 
 def get_falcon_client(settings: Settings):
+    """Instantiate the FalconPy Identity Protection client."""
     try:
         from falconpy import IdentityProtection
     except ImportError as exc:
@@ -21,6 +25,7 @@ def get_falcon_client(settings: Settings):
 
 
 def execute_graphql_query(falcon: Any, query: str, variables: dict) -> dict:
+    """Execute one GraphQL request and raise on HTTP or GraphQL-level errors."""
     response = falcon.graphql(query=query, variables=variables)
 
     if response.get("status_code") != 200:
@@ -38,7 +43,12 @@ def paginate_entities(
     query: str,
     progress_label: str,
 ) -> tuple[list[dict], list[dict]]:
+    """Fetch every entity page for a query and return nodes plus page history."""
     falcon = get_falcon_client(settings)
+    print_section(
+        f"Fase {progress_label}",
+        f"Consulta GraphQL paginada sobre dominio {settings.target_domain}",
+    )
 
     after = None
     all_nodes: list[dict] = []
@@ -70,9 +80,12 @@ def paginate_entities(
             }
         )
 
-        print(
-            f"[+] {progress_label}: pagina {page_number} procesada "
-            f"| nodos={len(nodes)}"
+        print_progress(
+            label=progress_label,
+            page_number=page_number,
+            nodes_in_page=len(nodes),
+            page_size=settings.page_size,
+            total_nodes=len(all_nodes),
         )
 
         if not page_info.get("hasNextPage"):
@@ -84,10 +97,16 @@ def paginate_entities(
                 "GraphQL indico que hay mas paginas pero no devolvio endCursor."
             )
 
+    print_status(
+        progress_label,
+        f"completado | paginas={page_number} | nodos_totales={len(all_nodes)}",
+        tone="success",
+    )
     return all_nodes, page_history
 
 
 def discover_risk_types(settings: Settings) -> tuple[list[dict], Counter, list[dict]]:
+    """Run the discovery phase and count risk types observed in the domain."""
     all_nodes, page_history = paginate_entities(
         settings=settings,
         query=DISCOVERY_QUERY,
@@ -105,6 +124,7 @@ def discover_risk_types(settings: Settings) -> tuple[list[dict], Counter, list[d
 
 
 def fetch_risk_details(settings: Settings) -> tuple[list[dict], list[dict]]:
+    """Run the detail phase using the richer GraphQL query."""
     return paginate_entities(
         settings=settings,
         query=DETAIL_QUERY,
@@ -113,6 +133,7 @@ def fetch_risk_details(settings: Settings) -> tuple[list[dict], list[dict]]:
 
 
 def build_risk_inventory(risk_counter: Counter) -> list[dict]:
+    """Convert raw counters into sorted rows with percentages for reporting."""
     total = sum(risk_counter.values())
     inventory = []
 

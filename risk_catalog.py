@@ -1,0 +1,271 @@
+"""Canonical metadata catalog for supported CrowdStrike risk types."""
+
+def _entry(
+    title: str,
+    family: str,
+    technical_summary: str,
+    impact: str,
+    recommended_action: str,
+) -> dict:
+    return {
+        "title": title,
+        "family": family,
+        "technical_summary": technical_summary,
+        "impact": impact,
+        "recommended_action": recommended_action,
+    }
+
+
+RISK_CATALOG = {
+    "ANOMALOUS_RPC": _entry(
+        "Anomalous RPC activity",
+        "Threat Activity",
+        "Se detecto un patron RPC inusual sobre la entidad afectada.",
+        "Puede indicar reconocimiento, abuso remoto o preparacion de movimiento lateral.",
+        "Revisar origen, frecuencia y contexto operativo de la actividad RPC asociada.",
+    ),
+    "CERTIFICATE_TEMPLATE_ALLOWS_AUTHENTICATION_AS_ANY_DOMAIN_USER": _entry(
+        "Certificate template allows authentication as any domain user",
+        "Certificate Exposure",
+        "La plantilla de certificados permite autenticacion con un alcance excesivo.",
+        "Puede habilitar elevacion de privilegios o suplantacion dentro del dominio.",
+        "Revisar EKU, enrollment permissions y restricciones de autenticacion de la plantilla.",
+    ),
+    "CREDENTIAL_SCANNING": _entry(
+        "Credential scanning",
+        "Threat Activity",
+        "Se observaron patrones compatibles con exploracion o prueba de credenciales.",
+        "Incrementa el riesgo de descubrimiento de cuentas validas y acceso no autorizado.",
+        "Investigar origen de la actividad y reforzar monitoreo, MFA y controles de bloqueo.",
+    ),
+    "CREDENTIAL_THEFT": _entry(
+        "Credential theft",
+        "Threat Activity",
+        "La entidad presenta indicadores relacionados con robo o exposicion de credenciales.",
+        "Puede conducir a compromiso de cuenta, escalamiento y persistencia.",
+        "Investigar sesion, rotar credenciales afectadas y validar actividad posterior asociada.",
+    ),
+    "DAILY_VOLUME_ANOMALY": _entry(
+        "Daily volume anomaly",
+        "Behavioral Anomaly",
+        "Se detecto un volumen diario de actividad fuera del comportamiento esperado.",
+        "Puede reflejar automatizacion anomala, abuso de cuenta o actividad adversaria.",
+        "Comparar contra linea base historica y revisar origen, horario y operaciones ejecutadas.",
+    ),
+    "DUPLICATE_PASSWORD": _entry(
+        "Duplicate password",
+        "Password Hygiene",
+        "La entidad comparte una contrasena con otra identidad observada en el entorno.",
+        "Favorece compromiso transversal y propagacion de impacto entre cuentas.",
+        "Forzar cambio de contrasena, revisar reutilizacion y aplicar controles de unicidad.",
+    ),
+    "HAS_ATTACK_PATH": _entry(
+        "Attack path exposure",
+        "Lateral Movement",
+        "Existe una ruta de ataque observable entre la entidad y otro activo o identidad.",
+        "La exposicion facilita abuso de relaciones de confianza y movimiento lateral.",
+        "Analizar la ruta, romper relaciones innecesarias y reducir privilegios o accesos implícitos.",
+    ),
+    "HAS_SPNS": _entry(
+        "Has SPNs",
+        "Kerberos Exposure",
+        "La entidad expone Service Principal Names relevantes para la superficie Kerberos.",
+        "Puede incrementar la exposicion a abuso de tickets o tecnicas de kerberoasting segun contexto.",
+        "Revisar necesidad de los SPNs, tipo de cuenta asociada y protecciones de servicio.",
+    ),
+    "INACTIVE_ACCOUNT": _entry(
+        "Inactive account",
+        "Account Lifecycle",
+        "La cuenta aparece inactiva dentro del inventario de identidad.",
+        "Las cuentas inactivas incrementan superficie de ataque y reducen visibilidad operativa.",
+        "Validar propietario, necesidad operativa y deshabilitar o retirar si no es requerida.",
+    ),
+    "INSUFFICIENT_PASSWORD_ROTATION": _entry(
+        "Insufficient password rotation",
+        "Password Hygiene",
+        "La rotacion de contrasena es inferior a lo esperado para la entidad afectada.",
+        "Aumenta la ventana de exposicion ante filtraciones o compromiso previo.",
+        "Revisar politica de expiracion y aplicar rotacion segun criticidad del activo o cuenta.",
+    ),
+    "KRBTGT_AGED_PASSWORD": _entry(
+        "KRBTGT aged password",
+        "Kerberos Exposure",
+        "La cuenta KRBTGT presenta una contrasena con antiguedad superior a la recomendada.",
+        "Un secreto KRBTGT envejecido amplifica el riesgo operativo ante compromiso previo y dificulta la contencion efectiva de tickets Kerberos forjados.",
+        "Validar el historial de rotacion y planificar una doble rotacion controlada de KRBTGT con ventana de cambio y seguimiento posterior.",
+    ),
+    "LATERAL_MOVEMENT": _entry(
+        "Lateral movement exposure",
+        "Lateral Movement",
+        "La entidad presenta indicadores de riesgo asociados con desplazamiento lateral.",
+        "Puede permitir expansion del compromiso desde un activo o identidad inicial.",
+        "Revisar relaciones de acceso, sesiones y privilegios que facilitan transito lateral.",
+    ),
+    "LDAP_RECONNAISSANCE": _entry(
+        "LDAP reconnaissance",
+        "Threat Activity",
+        "Se observaron patrones de reconocimiento sobre LDAP vinculados a la entidad.",
+        "Puede anticipar recoleccion de informacion para escalamiento o movimiento lateral.",
+        "Investigar origen, alcance de consultas y endurecer monitoreo de directorio.",
+    ),
+    "LDAP_SIGNING_DISABLED": _entry(
+        "LDAP signing disabled",
+        "Directory Hardening",
+        "El firmado LDAP no esta habilitado para la entidad o entorno relacionado.",
+        "Aumenta riesgo de tampering o relay sobre trafico de directorio.",
+        "Habilitar LDAP signing y validar compatibilidad de clientes y servicios dependientes.",
+    ),
+    "LDAPS_CHANNEL_BINDING": _entry(
+        "LDAPS channel binding",
+        "Directory Hardening",
+        "La vinculacion de canal LDAPS no cumple con la postura esperada.",
+        "Debilita protecciones frente a relay y ciertos escenarios de autenticacion intermediada.",
+        "Revisar configuracion de channel binding y aplicar endurecimiento en controladores y clientes.",
+    ),
+    "NEW_SERVER_ACCESS": _entry(
+        "New server access",
+        "Access Change",
+        "La entidad obtuvo acceso a un servidor no habitual o recientemente observado.",
+        "Puede ser legitimo, pero tambien indicar expansion de privilegios o actividad adversaria.",
+        "Validar motivo del acceso, aprobacion, horario y origen de la sesion asociada.",
+    ),
+    "NTLM_MOVEMENTS": _entry(
+        "NTLM movements",
+        "Lateral Movement",
+        "Se detecto actividad de movimiento relacionada con NTLM.",
+        "Puede señalar abuso de autenticacion heredada y mayor riesgo de relay o reutilizacion.",
+        "Reducir dependencia de NTLM, revisar origen de autenticaciones y endurecer controles.",
+    ),
+    "PASS_THE_HASH": _entry(
+        "Pass-the-hash exposure",
+        "Credential Abuse",
+        "La entidad presenta indicadores compatibles con riesgo de pass-the-hash.",
+        "Puede facilitar acceso lateral sin necesidad de contrasena en texto claro.",
+        "Rotar credenciales, revisar sesiones administrativas y minimizar privilegios persistentes.",
+    ),
+    "PASSWORD_BRUTE_FORCE": _entry(
+        "Password brute force",
+        "Threat Activity",
+        "La entidad presenta senales compatibles con fuerza bruta de contrasenas.",
+        "Puede desembocar en acceso no autorizado si no existen bloqueos o MFA efectivos.",
+        "Revisar origen, bloquear intentos maliciosos y reforzar MFA y umbrales de lockout.",
+    ),
+    "PRIVILEGED_MACHINE": _entry(
+        "Privileged machine",
+        "Privilege Exposure",
+        "El activo se considera privilegiado dentro del ecosistema de identidad.",
+        "Su compromiso puede tener impacto elevado sobre administracion y movimiento lateral.",
+        "Verificar uso administrativo, segmentacion y controles reforzados de acceso y monitoreo.",
+    ),
+    "PRIVILEGED_USER_USING_UNMANAGED_ENDPOINT": _entry(
+        "Privileged user using unmanaged endpoint",
+        "Privilege Exposure",
+        "Un usuario privilegiado opera desde un endpoint fuera de control esperado.",
+        "Incrementa riesgo de robo de credenciales y uso inseguro de privilegios elevados.",
+        "Restringir administracion a endpoints gestionados y revisar controles de acceso condicional.",
+    ),
+    "RISKY_LINKED_ACCOUNT": _entry(
+        "Risky linked account",
+        "Identity Correlation",
+        "La entidad esta asociada con una cuenta vinculada que incrementa el riesgo global.",
+        "Puede extender el impacto entre identidades relacionadas o federadas.",
+        "Revisar relacion entre cuentas, necesidad operativa y controles compensatorios aplicados.",
+    ),
+    "SHARED_ENDPOINT": _entry(
+        "Shared endpoint",
+        "Endpoint Exposure",
+        "El endpoint es utilizado por multiples identidades de forma relevante.",
+        "La comparticion complica trazabilidad y aumenta posibilidad de abuso cruzado.",
+        "Revisar necesidad operativa, segmentar uso y fortalecer monitoreo por identidad.",
+    ),
+    "SHARED_ENDPOINT_USED_BY_PRIVILEGED_USER": _entry(
+        "Shared endpoint used by privileged user",
+        "Privilege Exposure",
+        "Un endpoint compartido esta siendo usado por una identidad privilegiada.",
+        "Esto incrementa el riesgo de exposicion de credenciales administrativas y sesiones sensibles.",
+        "Restringir uso privilegiado a equipos dedicados y controlados, con monitoreo reforzado.",
+    ),
+    "SHARED_USER": _entry(
+        "Shared user",
+        "Identity Hygiene",
+        "La identidad presenta patrones compatibles con uso compartido entre multiples personas o procesos.",
+        "Reduce trazabilidad, complica atribucion y aumenta superficie de abuso.",
+        "Eliminar cuentas compartidas cuando sea posible y migrar a identidades individuales o delegadas.",
+    ),
+    "SMB_SIGNING_DISABLED": _entry(
+        "SMB signing disabled",
+        "Endpoint Hardening",
+        "El firmado SMB no esta habilitado en el contexto evaluado.",
+        "Aumenta riesgo de relay y manipulacion de trafico SMB durante autenticacion o acceso.",
+        "Habilitar SMB signing y validar impacto en compatibilidad de sistemas heredados.",
+    ),
+    "STALE_ACCOUNT": _entry(
+        "Stale account",
+        "Account Lifecycle",
+        "La cuenta se encuentra obsoleta o sin actividad reciente suficiente.",
+        "Las cuentas stale amplian superficie de ataque y suelen permanecer fuera de control operativo.",
+        "Validar necesidad del acceso, propietario y proceder con deshabilitacion o limpieza.",
+    ),
+    "STALE_ACCOUNT_USAGE": _entry(
+        "Stale account usage",
+        "Account Lifecycle",
+        "Se detecto uso sobre una cuenta considerada stale.",
+        "Esto puede indicar reactivacion no esperada, abuso de credenciales o control deficiente.",
+        "Investigar autenticaciones recientes y confirmar si la cuenta sigue siendo legitima.",
+    ),
+    "STALE_HOST_USAGE": _entry(
+        "Stale host usage",
+        "Endpoint Exposure",
+        "Se detecto actividad sobre un host considerado stale o fuera de uso esperado.",
+        "Puede reflejar activos desatendidos, reuso no controlado o cobertura limitada.",
+        "Validar propietario, conectividad y necesidad del activo; retirar o remediar si corresponde.",
+    ),
+    "STEALTHY_PRIVILEGES": _entry(
+        "Stealthy privileges",
+        "Privilege Exposure",
+        "La entidad acumula privilegios con visibilidad reducida o dificil deteccion operativa.",
+        "Esto favorece persistencia, escalamiento y abuso encubierto.",
+        "Revisar membresias, delegaciones y privilegios efectivos; aplicar minimo privilegio.",
+    ),
+    "VULNERABLE_OS": _entry(
+        "Vulnerable operating system",
+        "Endpoint Posture",
+        "El sistema operativo asociado presenta una postura vulnerable o desactualizada.",
+        "Aumenta riesgo de explotacion local, remota o de escalamiento.",
+        "Revisar version, parches pendientes y plan de actualizacion o compensacion.",
+    ),
+    "WEAK_PASSWORD": _entry(
+        "Weak password",
+        "Password Hygiene",
+        "La entidad esta asociada con una contrasena considerada debil.",
+        "Facilita adivinacion, fuerza bruta y abuso por reutilizacion o filtracion previa.",
+        "Forzar cambio inmediato y reforzar longitud, complejidad y MFA para la cuenta afectada.",
+    ),
+    "WEAK_PASSWORD_POLICY": _entry(
+        "Weak password policy",
+        "Password Hygiene",
+        "La politica de contrasenas aplicada es insuficiente para el nivel de riesgo esperado.",
+        "Favorece contrasenas predecibles y reduce resiliencia frente a ataques de autenticacion.",
+        "Revisar longitud minima, complejidad, historia, expiracion y bloqueo por intentos.",
+    ),
+}
+
+
+def build_parser_name(risk_type: str) -> str:
+    """Derive the default parser name used by catalog-backed risks."""
+    return risk_type.lower()
+
+
+def get_risk_metadata(risk_type: str) -> dict:
+    """Return metadata for a known risk type or a safe default template."""
+    default_title = risk_type.replace("_", " ").title()
+    return RISK_CATALOG.get(
+        risk_type,
+        _entry(
+            default_title,
+            "Unclassified",
+            "El riesgo fue detectado, pero todavia no cuenta con una plantilla dedicada.",
+            "Requiere validacion manual para determinar contexto e impacto real.",
+            "Revisar muestra raw y definir un parser especifico para este tipo de riesgo.",
+        ),
+    )

@@ -1,3 +1,5 @@
+"""GraphQL documents used by the discovery and detail phases."""
+
 DISCOVERY_QUERY = """
 query DiscoverRiskFactorTypes($after: Cursor, $domains: [String!], $first: Int) {
   entities(
