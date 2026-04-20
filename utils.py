@@ -348,6 +348,7 @@ def print_banner(title: str, subtitle: str = "") -> None:
     print(colorize(box_border(width, top=True), "magenta", bold=True))
     print(colorize(box_row("MERCURY // IDENTITY REPORT SEQUENCE", width), "cyan", bold=True))
     print(colorize(box_row(title, width), "blue", bold=True))
+    print(colorize(box_row("Built by Bryan Varela Vargas (W4rded)", width), "gray"))
     if subtitle:
         print(colorize(box_row(subtitle, width), "gray"))
     print(colorize(box_row("SESSION > IDENTITY_REPORT  |  MODE > CYBERPUNK OPS", width), "yellow"))
