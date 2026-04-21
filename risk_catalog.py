@@ -17,12 +17,26 @@ def _entry(
 
 
 RISK_CATALOG = {
+    "AGED_PASSWORD": _entry(
+        "Aged password",
+        "Password Hygiene",
+        "La entidad mantiene una contrasena con antiguedad superior a la postura recomendada.",
+        "Amplia la ventana de exposicion frente a filtraciones, reutilizacion o compromiso previo de credenciales.",
+        "Validar necesidad operativa de la cuenta y aplicar rotacion de contrasena acorde con su criticidad y uso real.",
+    ),
     "ANOMALOUS_RPC": _entry(
         "Anomalous RPC activity",
         "Threat Activity",
         "Se detecto un patron RPC inusual sobre la entidad afectada.",
         "Puede indicar reconocimiento, abuso remoto o preparacion de movimiento lateral.",
         "Revisar origen, frecuencia y contexto operativo de la actividad RPC asociada.",
+    ),
+    "ASSOCIATION_WITH_RISKY_ENDPOINT": _entry(
+        "Association with risky endpoint",
+        "Endpoint Exposure",
+        "La identidad aparece asociada con un endpoint que CrowdStrike considera riesgoso dentro del contexto de Identity Protection.",
+        "Puede indicar exposicion indirecta de la cuenta a robo de credenciales, sesion comprometida o uso desde un activo con postura insegura.",
+        "Revisar el endpoint relacionado, validar sesiones recientes y confirmar si la cuenta requiere contencion, rotacion o restricciones adicionales.",
     ),
     "CERTIFICATE_TEMPLATE_ALLOWS_AUTHENTICATION_AS_ANY_DOMAIN_USER": _entry(
         "Certificate template allows authentication as any domain user",
@@ -233,6 +247,13 @@ RISK_CATALOG = {
         "El sistema operativo asociado presenta una postura vulnerable o desactualizada.",
         "Aumenta riesgo de explotacion local, remota o de escalamiento.",
         "Revisar version, parches pendientes y plan de actualizacion o compensacion.",
+    ),
+    "VULNERABLE_NTLM_COMPATIBILITY_LEVEL": _entry(
+        "Vulnerable NTLM compatibility level",
+        "Endpoint Hardening",
+        "La configuracion de compatibilidad NTLM observada en la entidad es mas permisiva de lo recomendado.",
+        "Puede facilitar abuso de autenticacion heredada, relay, downgrade o reutilizacion de mecanismos NTLM menos robustos.",
+        "Revisar la politica NTLM efectiva, endurecer el nivel de compatibilidad y reducir la dependencia de protocolos heredados cuando sea viable.",
     ),
     "WEAK_PASSWORD": _entry(
         "Weak password",
