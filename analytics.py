@@ -69,7 +69,7 @@ def build_executive_analytics(
 
     key_findings = [
         (
-            f"La familia dominante es {lead_family} con {lead_family_count:,} hallazgos, "
+            f"El dominio de atencion principal es {lead_family} con {lead_family_count:,} hallazgos, "
             f"lo que concentra la mayor parte de la exposicion observada."
         ),
         (
@@ -88,12 +88,11 @@ def build_executive_analytics(
             "revision de movimiento lateral y privilegios."
         ),
         (
-            f"El pipeline dejo {audit_count:,} hallazgos de auditoria y "
-            f"{parse_status_counter.get('requires_review', 0):,} casos pendientes de revision manual."
+            f"Quedan {parse_status_counter.get('requires_review', 0):,} casos que requieren "
+            "confirmacion manual antes de cerrar la atencion."
         ),
         (
-            "La portada ejecutiva fue construida exclusivamente a partir de agregados y "
-            "conteos del reporte tecnico ya generado."
+            "La priorizacion combina volumen, criticidad, accionabilidad y correlacion por entidad."
         ),
     ]
 
@@ -140,7 +139,7 @@ def build_suggested_actions(
 
     if top_families:
         actions.append(
-            f"Priorizar la familia {top_families[0][0]} como frente principal de remediacion."
+            f"Priorizar el dominio {top_families[0][0]} como frente principal de remediacion."
         )
 
     if top_risks:
@@ -155,11 +154,11 @@ def build_suggested_actions(
 
     if audit_count:
         actions.append(
-            "Resolver los hallazgos de auditoria antes de compartir la version final con cliente."
+            "Validar internamente los casos no normalizados antes de cerrar la version de entrega."
         )
     else:
         actions.append(
-            "El reporte actual no presenta pendientes de auditoria y esta listo para revision tecnica."
+            "El reporte esta listo para revision tecnica y coordinacion de remediacion."
         )
 
     return actions[:4]

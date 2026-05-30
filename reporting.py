@@ -36,6 +36,13 @@ PARSER_INVENTORY_FIELDS = [
     "percentage",
     "selected_parser",
 ]
+RISK_SUMMARY_EXCEL_FIELDS = [
+    "risk_type",
+    "risk_title",
+    "risk_family",
+    "count",
+    "percentage",
+]
 PARSED_RISK_FIELDS = [
     "entity",
     "secondary_identifier",
@@ -65,21 +72,36 @@ PARSED_RISK_FIELDS = [
     "parse_status",
     "falcon_link",
 ]
-PARSED_RISK_EXCEL_FIELDS = [
+ATTENTION_PLAN_FIELDS = [
+    "entity",
+    "secondary_identifier",
+    "entity_type",
+    "review_priority",
+    "actionability_level",
+    "attention_status",
+    "risk_title",
+    "recommended_action",
+    "likely_impact",
+    "evidence_available",
+    "falcon_link",
+]
+PRIORITY_RISK_FIELDS = [
+    "risk_title",
+    "risk_family",
+    "count",
+    "percentage",
+    "criticality_note",
+    "concentration_note",
+]
+OPERATING_DETAIL_FIELDS = [
     "entity",
     "secondary_identifier",
     "entity_type",
     "severity",
     "review_priority",
     "actionability_level",
-    "actionability_note",
-    "entity_risk_type_count",
-    "entity_total_findings",
-    "entity_risk_overview",
-    "risk_type",
     "risk_title",
     "risk_family",
-    "structure_profile",
     "context_summary",
     "technical_observation",
     "likely_impact",
@@ -139,7 +161,7 @@ RAW_SAMPLE_FIELDS = [
 FIELD_LABELS = {
     "risk_type": "Tipo de riesgo",
     "risk_title": "Riesgo",
-    "risk_family": "Familia",
+    "risk_family": "Dominio de atencion",
     "count": "Cantidad",
     "percentage": "Porcentaje",
     "selected_parser": "Parser seleccionado",
@@ -150,16 +172,19 @@ FIELD_LABELS = {
     "review_priority": "Prioridad de revision",
     "actionability_level": "Nivel de accionabilidad",
     "actionability_note": "Siguiente paso sugerido",
+    "attention_status": "Estado sugerido",
+    "criticality_note": "Lectura de criticidad",
+    "concentration_note": "Concentracion observada",
     "highest_severity": "Severidad mas alta de entidad",
     "entity_risk_type_count": "Tipos de riesgo en la entidad",
     "entity_total_findings": "Hallazgos totales en la entidad",
     "total_findings": "Hallazgos totales",
     "entity_risk_overview": "Correlacion de entidad",
-    "entity_family_overview": "Familias en la entidad",
+    "entity_family_overview": "Dominios en la entidad",
     "distinct_risk_types": "Tipos de riesgo distintos",
-    "distinct_families": "Familias distintas",
+    "distinct_families": "Dominios distintos",
     "risk_titles": "Riesgos correlacionados",
-    "risk_families": "Familias correlacionadas",
+    "risk_families": "Dominios correlacionados",
     "correlation_note": "Interpretacion de correlacion",
     "risk_typename": "Tipo GraphQL",
     "structure_profile": "Perfil estructural",
@@ -193,40 +218,28 @@ FIELD_LABELS = {
 
 SHEET_TITLES = {
     "executive": "Resumen Ejecutivo",
-    "risk_summary": "Resumen Riesgos",
-    "parsed_risks": "Riesgos Parseados",
+    "attention_plan": "Plan de Atencion",
+    "priority_risks": "Riesgos Prioritarios",
+    "critical_entities": "Entidades Criticas",
     "attack_paths": "Rutas de Ataque",
-    "entity_correlation": "Correlacion Entidades",
-    "lifecycle_correlation": "Correlacion Ciclo Vida",
-    "unknown": "Auditoria - Sin Parser",
-    "errors": "Auditoria - Errores",
+    "risk_summary": "Resumen por Riesgo",
+    "operating_detail": "Detalle Operativo",
 }
 
-RISK_GROUP_SHEETS = {
-    "Credenciales Identidad": {
-        "Password Hygiene",
-        "Identity Hygiene",
-        "Identity Correlation",
-        "Credential Abuse",
-        "Kerberos Exposure",
-        "Certificate Exposure",
-    },
-    "Ciclo Vida Acceso": {
-        "Account Lifecycle",
-        "Access Change",
-        "Behavioral Anomaly",
-    },
-    "Endpoint Directorio": {
-        "Endpoint Hardening",
-        "Endpoint Exposure",
-        "Endpoint Posture",
-        "Directory Hardening",
-    },
-    "Amenaza Privilegios": {
-        "Threat Activity",
-        "Privilege Exposure",
-        "Lateral Movement",
-    },
+REPORT_THEME = {
+    "ink": "1F2222",
+    "ink_soft": "3B4242",
+    "paper": "FFFFFF",
+    "muted": "F7F7F7",
+    "line": "DDE5E5",
+    "accent": "39FE90",
+    "accent_soft": "E8FFF3",
+    "cyan": "1CF9FC",
+    "cyan_soft": "E8FEFF",
+    "magenta": "F21C8E",
+    "purple": "A11CF5",
+    "red": "FF4950",
+    "yellow": "FBEC0C",
 }
 
 PERCENTAGE_FIELDS = {"percentage"}
@@ -240,17 +253,17 @@ COUNT_FIELDS = {
     "distinct_families",
 }
 URL_FIELDS = {"falcon_link", "related_falcon_link", "source_link", "related_link"}
+SEVERITY_SORT_ORDER = {
+    "CRITICAL": 0,
+    "HIGH": 1,
+    "MEDIUM": 2,
+    "LOW": 3,
+    "INFO": 4,
+    "": 5,
+}
 
 
 def sort_parsed_risks(rows: list[dict]) -> list[dict]:
-    severity_order = {
-        "CRITICAL": 0,
-        "HIGH": 1,
-        "MEDIUM": 2,
-        "LOW": 3,
-        "INFO": 4,
-        "": 5,
-    }
     return sorted(
         rows,
         key=lambda row: (
@@ -258,38 +271,105 @@ def sort_parsed_risks(rows: list[dict]) -> list[dict]:
             actionability_sort_rank(str(row.get("actionability_level", "") or "")),
             str(row.get("risk_family", "") or ""),
             str(row.get("risk_title", "") or ""),
-            severity_order.get(str(row.get("severity", "") or "").upper(), 5),
+            SEVERITY_SORT_ORDER.get(str(row.get("severity", "") or "").upper(), 5),
             str(row.get("entity", "") or ""),
         ),
     )
 
 
-def build_grouped_parsed_risk_sheets(parsed_risks: list[dict]) -> dict[str, list[dict]]:
-    grouped = {title: [] for title in RISK_GROUP_SHEETS}
-    others: list[dict] = []
+def build_attention_plan_rows(parsed_risks: list[dict]) -> list[dict]:
+    rows = []
+    for row in sort_parsed_risks(parsed_risks):
+        rows.append(
+            {
+                **row,
+                "attention_status": determine_attention_status(row),
+            }
+        )
+    return rows
 
+
+def determine_attention_status(row: dict) -> str:
+    priority = str(row.get("review_priority", "") or "").upper()
+    actionability = str(row.get("actionability_level", "") or "")
+
+    if priority == "P1":
+        return "Atencion inmediata"
+    if actionability == "Investigacion guiada":
+        return "Investigar y confirmar alcance"
+    if actionability == "Validacion en Falcon":
+        return "Validar contexto en Falcon"
+    return "Planificar remediacion"
+
+
+def build_priority_risk_rows(risk_summary_rows: list[dict], parsed_risks: list[dict]) -> list[dict]:
+    risk_context = {}
     for row in parsed_risks:
-        family = str(row.get("risk_family", "") or "")
-        target_title = None
-        for title, families in RISK_GROUP_SHEETS.items():
-            if family in families:
-                target_title = title
-                break
+        risk_type = str(row.get("risk_type", "") or "")
+        context = risk_context.setdefault(
+            risk_type,
+            {
+                "severities": set(),
+                "priorities": set(),
+                "entities": set(),
+            },
+        )
+        context["severities"].add(str(row.get("severity", "") or "").upper())
+        context["priorities"].add(str(row.get("review_priority", "") or "").upper())
+        context["entities"].add(
+            (
+                str(row.get("entity", "") or ""),
+                str(row.get("secondary_identifier", "") or ""),
+                str(row.get("entity_type", "") or ""),
+            )
+        )
 
-        if target_title:
-            grouped[target_title].append(row)
+    priority_rows = []
+    for row in risk_summary_rows:
+        risk_type = str(row.get("risk_type", "") or "")
+        context = risk_context.get(risk_type, {})
+        priorities = context.get("priorities", set())
+        severities = context.get("severities", set())
+        entity_count = len(context.get("entities", set()))
+        count = int(row.get("count", 0) or 0)
+        percentage = float(row.get("percentage", 0) or 0)
+
+        if "P1" in priorities:
+            criticality_note = "Requiere atencion prioritaria por criticidad o correlacion."
+        elif "P2" in priorities:
+            criticality_note = "Requiere validacion y plan de remediacion."
+        elif {"HIGH", "CRITICAL"} & severities:
+            criticality_note = "Presenta severidad alta en al menos una entidad."
         else:
-            others.append(row)
+            criticality_note = "Gestionar dentro del plan regular de mejora."
 
-    result = {}
-    for title, rows in grouped.items():
-        if rows:
-            result[title] = sort_parsed_risks(rows)
+        if entity_count:
+            concentration_note = (
+                f"{count:,} hallazgos distribuidos en {entity_count:,} entidades "
+                f"({percentage:.2f}% del total)."
+            )
+        else:
+            concentration_note = f"{count:,} hallazgos ({percentage:.2f}% del total)."
 
-    if others:
-        result["Otros Riesgos"] = sort_parsed_risks(others)
+        priority_rows.append(
+            {
+                "risk_title": row.get("risk_title", row.get("risk_type", "")),
+                "risk_family": row.get("risk_family", ""),
+                "count": count,
+                "percentage": percentage,
+                "criticality_note": criticality_note,
+                "concentration_note": concentration_note,
+            }
+        )
 
-    return result
+    return sorted(
+        priority_rows,
+        key=lambda item: (
+            0 if "prioritaria" in item["criticality_note"] else 1,
+            -int(item.get("count", 0) or 0),
+            str(item.get("risk_title", "") or ""),
+        ),
+    )
 
 
 def sanitize_filename_component(value: str) -> str:
@@ -529,7 +609,6 @@ def save_technical_excel(
         from openpyxl.chart import BarChart, Reference
         from openpyxl.chart.label import DataLabelList
         from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-        from openpyxl.utils import get_column_letter
     except ImportError:
         return (
             "No se genero el Excel tecnico porque falta la dependencia "
@@ -539,15 +618,14 @@ def save_technical_excel(
     workbook = Workbook()
     workbook.properties.creator = PROJECT_SIGNATURE
     workbook.properties.lastModifiedBy = PROJECT_SIGNATURE
-    workbook.properties.title = "Identity Protection Technical Report"
-    entity_correlation_rows = build_entity_correlation_rows(parsed_risks)
-    lifecycle_correlation_rows = build_entity_correlation_rows(
-        parsed_risks,
-        family_filter=RISK_GROUP_SHEETS["Ciclo Vida Acceso"],
-    )
+    workbook.properties.title = "Identity Protection Attention Report"
+    attention_plan_rows = build_attention_plan_rows(parsed_risks)
+    priority_risk_rows = build_priority_risk_rows(risk_summary_rows, parsed_risks)
+    critical_entity_rows = build_entity_correlation_rows(parsed_risks)
+    operating_detail_rows = sort_parsed_risks(parsed_risks)
     print_status(
         "Render Engine",
-        "Sincronizando hojas principales, correlaciones y vistas tecnicas...",
+        "Sincronizando vistas ejecutivas y operativas del workbook...",
         "info",
     )
 
@@ -557,32 +635,34 @@ def save_technical_excel(
     chart_data_sheet.sheet_state = "hidden"
 
     sheet_specs = [
-        (SHEET_TITLES["risk_summary"], risk_summary_rows, PARSER_INVENTORY_FIELDS),
         (
-            SHEET_TITLES["entity_correlation"],
-            entity_correlation_rows,
-            ENTITY_CORRELATION_FIELDS,
+            SHEET_TITLES["attention_plan"],
+            attention_plan_rows,
+            ATTENTION_PLAN_FIELDS,
         ),
         (
-            SHEET_TITLES["lifecycle_correlation"],
-            lifecycle_correlation_rows,
-            ENTITY_CORRELATION_FIELDS,
+            SHEET_TITLES["priority_risks"],
+            priority_risk_rows,
+            PRIORITY_RISK_FIELDS,
         ),
-        (SHEET_TITLES["attack_paths"], attack_paths, ATTACK_PATH_FIELDS),
         (
-            SHEET_TITLES["parsed_risks"],
-            sort_parsed_risks(parsed_risks),
-            PARSED_RISK_EXCEL_FIELDS,
+            SHEET_TITLES["critical_entities"],
+            critical_entity_rows,
+            ENTITY_CORRELATION_FIELDS,
         ),
     ]
 
-    for title, rows in build_grouped_parsed_risk_sheets(parsed_risks).items():
-        sheet_specs.append((title, rows, PARSED_RISK_EXCEL_FIELDS))
+    if attack_paths:
+        sheet_specs.append((SHEET_TITLES["attack_paths"], attack_paths, ATTACK_PATH_FIELDS))
 
     sheet_specs.extend(
         [
-            (SHEET_TITLES["unknown"], unknown_rows, UNKNOWN_RISK_FIELDS),
-            (SHEET_TITLES["errors"], error_rows, ERROR_FIELDS),
+            (SHEET_TITLES["risk_summary"], risk_summary_rows, RISK_SUMMARY_EXCEL_FIELDS),
+            (
+                SHEET_TITLES["operating_detail"],
+                operating_detail_rows,
+                OPERATING_DETAIL_FIELDS,
+            ),
         ]
     )
 
@@ -644,17 +724,21 @@ def write_sheet(
 ) -> None:
     """Write one tabular worksheet with formatting, filters and hyperlinks."""
     effective_fieldnames = select_visible_fields(rows, fieldnames)
-    header_fill = fill_cls(fill_type="solid", start_color="1F4E78", end_color="1F4E78")
+    header_fill = fill_cls(
+        fill_type="solid",
+        start_color=REPORT_THEME["ink"],
+        end_color=REPORT_THEME["ink"],
+    )
     border = border_cls(
-        left=side_cls(style="thin", color="D9E2F3"),
-        right=side_cls(style="thin", color="D9E2F3"),
-        top=side_cls(style="thin", color="D9E2F3"),
-        bottom=side_cls(style="thin", color="D9E2F3"),
+        left=side_cls(style="thin", color=REPORT_THEME["line"]),
+        right=side_cls(style="thin", color=REPORT_THEME["line"]),
+        top=side_cls(style="thin", color=REPORT_THEME["line"]),
+        bottom=side_cls(style="thin", color=REPORT_THEME["line"]),
     )
     worksheet.append([FIELD_LABELS.get(field, field) for field in effective_fieldnames])
 
     for cell in worksheet[1]:
-        cell.font = font_cls(bold=True, color="FFFFFF")
+        cell.font = font_cls(bold=True, color=REPORT_THEME["paper"])
         cell.fill = header_fill
         cell.alignment = alignment_cls(horizontal="center", vertical="center")
         cell.border = border
@@ -685,6 +769,17 @@ def write_sheet(
         )
         if status_index:
             apply_status_fill(row[status_index - 1], fill_cls)
+
+        attention_index = next(
+            (
+                index
+                for index, name in enumerate(effective_fieldnames, start=1)
+                if name == "attention_status"
+            ),
+            None,
+        )
+        if attention_index:
+            apply_attention_status_fill(row[attention_index - 1], fill_cls, font_cls)
 
     apply_column_formats(worksheet, effective_fieldnames, alignment_cls)
 
@@ -722,6 +817,21 @@ def apply_status_fill(cell, fill_cls) -> None:
         cell.fill = fill_cls(fill_type="solid", start_color=fill_color, end_color=fill_color)
 
 
+def apply_attention_status_fill(cell, fill_cls, font_cls) -> None:
+    status = str(cell.value or "")
+    palette = {
+        "Atencion inmediata": (REPORT_THEME["red"], REPORT_THEME["paper"]),
+        "Investigar y confirmar alcance": ("FCE4D6", "9C0006"),
+        "Validar contexto en Falcon": ("FFF2CC", "7F6000"),
+        "Planificar remediacion": (REPORT_THEME["accent_soft"], "385723"),
+    }
+    style = palette.get(status)
+    if style:
+        fill_color, font_color = style
+        cell.fill = fill_cls(fill_type="solid", start_color=fill_color, end_color=fill_color)
+        cell.font = font_cls(color=font_color, bold=True)
+
+
 def apply_attention_fills(row, fieldnames: list[str], fill_cls, font_cls) -> None:
     attention_fields = {
         "severity": apply_severity_fill,
@@ -755,7 +865,7 @@ def apply_priority_fill(cell, fill_cls, font_cls) -> None:
     palette = {
         "P1": ("F4CCCC", "7F0000"),
         "P2": ("FFF2CC", "7F6000"),
-        "P3": ("DDEBF7", "1F4E78"),
+        "P3": (REPORT_THEME["cyan_soft"], REPORT_THEME["ink"]),
     }
     style = palette.get(priority)
     if style:
@@ -835,39 +945,59 @@ def build_executive_summary_sheet(
     executive_sheet.sheet_view.showGridLines = False
     executive_sheet.freeze_panes = "A9"
 
-    title_fill = fill_cls(fill_type="solid", start_color="163A5F", end_color="163A5F")
-    accent_fill = fill_cls(fill_type="solid", start_color="DCE6F1", end_color="DCE6F1")
-    card_fill = fill_cls(fill_type="solid", start_color="EAF2F8", end_color="EAF2F8")
-    section_fill = fill_cls(fill_type="solid", start_color="5B9BD5", end_color="5B9BD5")
-    soft_fill = fill_cls(fill_type="solid", start_color="F6F9FC", end_color="F6F9FC")
+    title_fill = fill_cls(
+        fill_type="solid",
+        start_color=REPORT_THEME["ink"],
+        end_color=REPORT_THEME["ink"],
+    )
+    accent_fill = fill_cls(
+        fill_type="solid",
+        start_color=REPORT_THEME["accent_soft"],
+        end_color=REPORT_THEME["accent_soft"],
+    )
+    card_fill = fill_cls(
+        fill_type="solid",
+        start_color=REPORT_THEME["muted"],
+        end_color=REPORT_THEME["muted"],
+    )
+    section_fill = fill_cls(
+        fill_type="solid",
+        start_color=REPORT_THEME["ink_soft"],
+        end_color=REPORT_THEME["ink_soft"],
+    )
+    soft_fill = fill_cls(
+        fill_type="solid",
+        start_color=REPORT_THEME["paper"],
+        end_color=REPORT_THEME["paper"],
+    )
     border = border_cls(
-        left=side_cls(style="thin", color="B8CCE4"),
-        right=side_cls(style="thin", color="B8CCE4"),
-        top=side_cls(style="thin", color="B8CCE4"),
-        bottom=side_cls(style="thin", color="B8CCE4"),
+        left=side_cls(style="thin", color=REPORT_THEME["line"]),
+        right=side_cls(style="thin", color=REPORT_THEME["line"]),
+        top=side_cls(style="thin", color=REPORT_THEME["line"]),
+        bottom=side_cls(style="thin", color=REPORT_THEME["line"]),
     )
 
-    executive_sheet.merge_cells("A1:H2")
+    executive_sheet.merge_cells("A1:L2")
     title_cell = executive_sheet["A1"]
-    title_cell.value = "Reporte Tecnico de Identity Protection"
-    title_cell.font = font_cls(size=16, bold=True, color="FFFFFF")
+    title_cell.value = "Reporte de Atencion - Identity Protection"
+    title_cell.font = font_cls(size=16, bold=True, color=REPORT_THEME["paper"])
     title_cell.fill = title_fill
     title_cell.alignment = alignment_cls(horizontal="center", vertical="center")
 
-    executive_sheet.merge_cells("A3:H3")
+    executive_sheet.merge_cells("A3:L3")
     subtitle_cell = executive_sheet["A3"]
     subtitle_cell.value = (
         f"Dominio analizado: {settings.target_domain} | "
         f"Generado: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     )
-    subtitle_cell.font = font_cls(size=10, italic=True, color="1F1F1F")
+    subtitle_cell.font = font_cls(size=10, italic=True, color=REPORT_THEME["ink"])
     subtitle_cell.fill = accent_fill
     subtitle_cell.alignment = alignment_cls(horizontal="center", vertical="center")
 
     kpis = [
         ("Riesgos detectados", f"{metrics['total_risks']:,}"),
         ("Tipos de riesgo", f"{metrics['total_risk_types']:,}"),
-        ("Familia dominante", metrics["lead_family"]),
+        ("Dominio principal", metrics["lead_family"]),
         ("Riesgo principal", metrics["lead_risk_title"]),
         ("Top 3 concentran", f"{metrics['top3_share']:.2f}%"),
         ("Rutas de ataque", f"{metrics['attack_path_count']:,}"),
@@ -878,7 +1008,7 @@ def build_executive_summary_sheet(
         executive_sheet.merge_cells(cell_range)
         cell = executive_sheet[cell_range.split(":")[0]]
         cell.value = f"{label}\n{value}"
-        cell.font = font_cls(size=12, bold=True, color="163A5F")
+        cell.font = font_cls(size=12, bold=True, color=REPORT_THEME["ink"])
         cell.fill = card_fill
         cell.alignment = alignment_cls(horizontal="center", vertical="center", wrap_text=True)
         for row in executive_sheet[cell_range]:
@@ -934,7 +1064,7 @@ def build_executive_summary_sheet(
     make_section_header(
         executive_sheet,
         "G18:L18",
-        "Familias de Riesgo",
+        "Dominios de Atencion",
         font_cls,
         section_fill,
         alignment_cls,
@@ -963,7 +1093,7 @@ def build_executive_summary_sheet(
         executive_sheet,
         start_row=19,
         start_col=7,
-        headers=["Familia", "Cantidad"],
+        headers=["Dominio", "Cantidad"],
         rows=[[family, count] for family, count in analytics["condensed_families"]] or [["Sin datos", 0]],
         fill_cls=fill_cls,
         font_cls=font_cls,
@@ -1001,7 +1131,7 @@ def build_executive_summary_sheet(
         executive_sheet,
         chart_data_sheet=chart_data_sheet,
         anchor="H27",
-        title="Top familias por exposicion",
+        title="Top dominios por exposicion",
         reference_cls=reference_cls,
         bar_chart_cls=bar_chart_cls,
         data_label_list_cls=data_label_list_cls,
@@ -1021,10 +1151,9 @@ def build_executive_summary_sheet(
     executive_sheet.merge_cells("A50:L53")
     note_cell = executive_sheet["A50"]
     note_cell.value = (
-        "Esta portada ejecutiva resume hallazgos a partir de los conteos, familias, "
-        "rutas de ataque y resultados de parseo ya presentes en el workbook. "
-        "No agrega fuentes externas ni replica evidencia sensible mas alla de los "
-        "agregados necesarios para presentacion."
+        "Esta vista resume la exposicion observada y prioriza la atencion operativa. "
+        "Las hojas visibles estan orientadas a revision MSSP y conversacion con cliente: "
+        "acciones, entidades criticas, riesgos principales y detalle tecnico necesario."
     )
     note_cell.alignment = alignment_cls(wrap_text=True, vertical="top")
     note_cell.fill = accent_fill
@@ -1055,11 +1184,15 @@ def write_helper_table(
     alignment_cls,
     border,
 ) -> None:
-    header_fill = fill_cls(fill_type="solid", start_color="5B9BD5", end_color="5B9BD5")
+    header_fill = fill_cls(
+        fill_type="solid",
+        start_color=REPORT_THEME["ink_soft"],
+        end_color=REPORT_THEME["ink_soft"],
+    )
 
     for offset, header in enumerate(headers):
         cell = worksheet.cell(row=start_row, column=start_col + offset, value=header)
-        cell.font = font_cls(bold=True, color="FFFFFF")
+        cell.font = font_cls(bold=True, color=REPORT_THEME["paper"])
         cell.fill = header_fill
         cell.alignment = alignment_cls(horizontal="center")
         cell.border = border
@@ -1097,6 +1230,9 @@ def add_top_risks_chart(
     categories = reference_cls(chart_data_sheet, min_col=1, min_row=20, max_row=19 + rows)
     chart.add_data(data, titles_from_data=True)
     chart.set_categories(categories)
+    if chart.series:
+        chart.series[0].graphicalProperties.solidFill = REPORT_THEME["accent"]
+        chart.series[0].graphicalProperties.line.solidFill = REPORT_THEME["accent"]
     chart.legend = None
     chart.gapWidth = 35
     chart.dLbls = data_label_list_cls()
@@ -1129,6 +1265,9 @@ def add_family_distribution_chart(
     labels = reference_cls(chart_data_sheet, min_col=4, min_row=20, max_row=19 + rows)
     chart.add_data(data, titles_from_data=True)
     chart.set_categories(labels)
+    if chart.series:
+        chart.series[0].graphicalProperties.solidFill = REPORT_THEME["cyan"]
+        chart.series[0].graphicalProperties.line.solidFill = REPORT_THEME["cyan"]
     chart.legend = None
     chart.gapWidth = 35
     chart.dLbls = data_label_list_cls()
@@ -1139,15 +1278,6 @@ def add_family_distribution_chart(
     chart.x_axis.title = None
     chart.y_axis.title = None
     worksheet.add_chart(chart, anchor)
-
-
-def count_family_rows(worksheet, start_col: int = 6, start_row: int = 11) -> int:
-    count = 0
-    row = start_row
-    while worksheet.cell(row=row, column=start_col).value:
-        count += 1
-        row += 1
-    return count
 
 
 def get_chart_dimensions(rows: int, max_label_length: int) -> tuple[float, float]:
@@ -1183,7 +1313,7 @@ def make_section_header(
     worksheet.merge_cells(cell_range)
     start_cell = worksheet[cell_range.split(":")[0]]
     start_cell.value = title
-    start_cell.font = font_cls(bold=True, color="FFFFFF")
+    start_cell.font = font_cls(bold=True, color=REPORT_THEME["paper"])
     start_cell.fill = fill
     start_cell.alignment = alignment_cls(horizontal="left", vertical="center")
     for row in worksheet[cell_range]:
@@ -1203,7 +1333,7 @@ def write_bullet_box(
     worksheet.merge_cells(cell_range)
     start_cell = worksheet[cell_range.split(":")[0]]
     start_cell.value = "\n".join(f"- {line}" for line in lines if line)
-    start_cell.font = font_cls(size=10, color="1F1F1F")
+    start_cell.font = font_cls(size=10, color=REPORT_THEME["ink"])
     start_cell.fill = fill
     start_cell.alignment = alignment_cls(vertical="top", wrap_text=True)
     for row in worksheet[cell_range]:
@@ -1213,12 +1343,16 @@ def write_bullet_box(
 
 def color_sheet_tabs(workbook) -> None:
     tab_colors = {
-        SHEET_TITLES["executive"]: "1F4E78",
-        SHEET_TITLES["risk_summary"]: "2F75B5",
-        SHEET_TITLES["parsed_risks"]: "70AD47",
-        SHEET_TITLES["attack_paths"]: "C55A11",
-        SHEET_TITLES["unknown"]: "BF9000",
-        SHEET_TITLES["errors"]: "C00000",
+        SHEET_TITLES["executive"]: REPORT_THEME["ink"],
+        SHEET_TITLES["attention_plan"]: REPORT_THEME["accent"],
+        SHEET_TITLES["priority_risks"]: REPORT_THEME["magenta"],
+        SHEET_TITLES["critical_entities"]: REPORT_THEME["purple"],
+        SHEET_TITLES["attack_paths"]: REPORT_THEME["red"],
+        SHEET_TITLES["risk_summary"]: REPORT_THEME["cyan"],
+        SHEET_TITLES["operating_detail"]: REPORT_THEME["ink_soft"],
     }
     for worksheet in workbook.worksheets:
-        worksheet.sheet_properties.tabColor = tab_colors.get(worksheet.title, "5B9BD5")
+        worksheet.sheet_properties.tabColor = tab_colors.get(
+            worksheet.title,
+            REPORT_THEME["ink_soft"],
+        )

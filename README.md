@@ -37,8 +37,10 @@ En otras palabras: toma datos de Identity Protection, los organiza, los contextu
 - [Retencion de artefactos sensibles](#retencion-de-artefactos-sensibles)
 - [Nota sobre `output/`](#nota-sobre-output)
 - [Hojas del Excel](#hojas-del-excel)
+- [Dominios de atencion](#dominios-de-atencion)
 - [Nota sobre severidad](#nota-sobre-severidad)
 - [Revision recomendada despues de ejecutar](#revision-recomendada-despues-de-ejecutar)
+- [Guia L1 de atencion](#guia-l1-de-atencion)
 - [Cambio de cliente en entorno MSSP](#cambio-de-cliente-en-entorno-mssp)
 - [Troubleshooting](#troubleshooting)
 - [Referencias tecnicas para analistas](#referencias-tecnicas-para-analistas)
@@ -219,7 +221,7 @@ Al finalizar, revisa:
 
 1. el Excel final en la raiz del proyecto
 2. la consola para confirmar si hubo `Parser errors`, `Structure issues` o `Requires review`
-3. las hojas `Resumen Ejecutivo`, `Rutas de Ataque`, `Correlacion Ciclo Vida` y `Riesgos Parseados`
+3. las hojas `Resumen Ejecutivo`, `Plan de Atencion`, `Riesgos Prioritarios`, `Entidades Criticas` y `Detalle Operativo`
 
 </details>
 
@@ -333,7 +335,7 @@ Al finalizar, revisa:
 
 1. el Excel final en la raiz del proyecto
 2. la consola para confirmar si hubo `Parser errors`, `Structure issues` o `Requires review`
-3. las hojas `Resumen Ejecutivo`, `Rutas de Ataque`, `Correlacion Ciclo Vida` y `Riesgos Parseados`
+3. las hojas `Resumen Ejecutivo`, `Plan de Atencion`, `Riesgos Prioritarios`, `Entidades Criticas` y `Detalle Operativo`
 
 #### 9. Cerrar sesion o limpiar contexto antes de cambiar de cliente
 
@@ -504,7 +506,7 @@ El proyecto esta organizado por responsabilidad para reducir acoplamiento entre 
 - `discovery.py`
   Ejecuta GraphQL con FalconPy y pagina automaticamente hasta agotar resultados.
 - `risk_catalog.py`
-  Centraliza metadata base de riesgos: titulo, familia, resumen tecnico, impacto y remediacion.
+  Centraliza metadata base de riesgos: titulo, dominio de atencion, resumen tecnico, impacto y remediacion.
 - `parser_registry.py`
   Decide que parser usar para cada `risk_type`.
 - `parsers.py`
@@ -665,25 +667,82 @@ El proyecto la crea automaticamente en tiempo de ejecucion usando `ensure_output
 
 ## Hojas del Excel
 
+El workbook final esta optimizado para operacion MSSP y revision con cliente. Las hojas visibles se enfocan en priorizacion, accion y lectura clara, mientras que la trazabilidad interna queda en CSV/JSON cuando el modo de artefactos lo permite.
+
 Dependiendo de la corrida y de los datos encontrados, el workbook puede incluir:
 
 - `Resumen Ejecutivo`
-- `Resumen Riesgos`
-- `Riesgos Parseados`
-- `Rutas de Ataque`
-- `Correlacion Entidades`
-- `Correlacion Ciclo Vida`
-- `Credenciales Identidad`
-- `Ciclo Vida Acceso`
-- `Endpoint Directorio`
-- `Amenaza Privilegios`
-- `Auditoria - Sin Parser`
-- `Auditoria - Errores`
+- `Plan de Atencion`
+- `Riesgos Prioritarios`
+- `Entidades Criticas`
+- `Rutas de Ataque` solo si hay datos de attack path
+- `Resumen por Riesgo`
+- `Detalle Operativo`
+
+Descripcion resumida:
+
+- `Resumen Ejecutivo`: KPIs, focos principales, acciones sugeridas y lectura rapida para decision.
+- `Plan de Atencion`: vista principal para analista/MSSP con entidad, prioridad, accionabilidad, estado sugerido, accion recomendada, impacto, evidencia y enlace Falcon.
+- `Riesgos Prioritarios`: riesgos agregados por volumen, dominio de atencion, porcentaje, criticidad y concentracion observada.
+- `Entidades Criticas`: entidades con correlacion de multiples riesgos, severidad mas alta y enlace Falcon.
+- `Rutas de Ataque`: rutas observadas cuando CrowdStrike devuelve datos suficientes para construirlas.
+- `Resumen por Riesgo`: inventario agregado por `risk_type`, titulo, dominio de atencion, cantidad y porcentaje.
+- `Detalle Operativo`: detalle tecnico necesario para revisar y remediar sin exponer columnas internas del parser.
 
 Importante:
 
-- `Auditoria - Sin Parser` y `Auditoria - Errores` quedan siempre al final del documento
-- estas hojas estan pensadas para mantenimiento del proyecto y evolucion futura del parser
+- El Excel final ya no muestra hojas de auditoria interna ni hojas duplicadas por dominio de atencion.
+- `Auditoria - Sin Parser`, `Auditoria - Errores`, muestras raw y campos de parser se conservan solo como artefactos tecnicos cuando `FALCON_ARTIFACT_MODE` permite conservarlos.
+- La hoja oculta `_chart_data` puede existir como soporte interno para graficos y no debe compartirse como vista de analisis.
+
+## Dominios de atencion
+
+Los dominios de atencion del reporte salen del campo interno `family` definido en `risk_catalog.py` para cada `risk_type` soportado. El nombre interno se conserva por compatibilidad con el codigo y los CSV, pero en el Excel y la documentacion se presenta como `Dominio de atencion`.
+
+No es una taxonomia oficial cerrada de CrowdStrike, MITRE, NIST o Microsoft. Es una agrupacion operativa local para ayudar a un analista MSSP a convertir hallazgos de Identity Protection en frentes claros de investigacion, validacion y remediacion.
+
+La fuente primaria del hallazgo sigue siendo CrowdStrike Identity Protection: el `risk_type`, la entidad, la severidad de entidad y los datos del payload. El dominio de atencion es una capa interpretativa local que agrega contexto, priorizacion y lenguaje de remediacion.
+
+### Por que existe esta clasificacion
+
+La clasificacion por dominio de atencion ayuda a:
+
+- convertir muchos `risk_type` tecnicos en frentes de trabajo entendibles;
+- explicar a cliente si el problema es higiene de identidad, ciclo de vida, privilegios, endurecimiento, movimiento lateral o actividad adversaria;
+- priorizar acciones sin depender solo del volumen;
+- agrupar remediaciones que normalmente pertenecen al mismo equipo responsable, por ejemplo IAM, Active Directory, infraestructura, SOC o endpoint.
+
+### Dominios usados por el proyecto
+
+- `Password Hygiene`: debilidades de contrasena, rotacion, reutilizacion y politicas.
+- `Identity Hygiene`: cuentas compartidas o patrones que reducen trazabilidad.
+- `Account Lifecycle`: cuentas inactivas, obsoletas o con ciclo de vida deficiente.
+- `Access Change`: cambios o accesos nuevos que requieren validacion.
+- `Behavioral Anomaly`: actividad fuera de linea base o comportamiento esperado.
+- `Identity Correlation`: riesgos derivados de relacion entre identidades.
+- `Endpoint Exposure`: exposicion indirecta por endpoint riesgoso, compartido o stale.
+- `Endpoint Hardening`: configuraciones debiles en endpoints o protocolos.
+- `Endpoint Posture`: postura vulnerable o desactualizada del activo asociado.
+- `Directory Hardening`: configuraciones de directorio que debilitan integridad o autenticacion.
+- `Credential Abuse`: escenarios de abuso o reutilizacion de credenciales.
+- `Kerberos Exposure`: superficie relacionada con Kerberos, SPN o KRBTGT.
+- `Certificate Exposure`: exposicion por configuracion de AD CS/certificados.
+- `Privilege Exposure`: privilegios, cuentas o equipos con impacto elevado.
+- `Lateral Movement`: relaciones o rutas que facilitan movimiento lateral.
+- `Threat Activity`: senales de actividad adversaria o investigacion activa.
+- `Unclassified`: fallback para riesgos nuevos o no catalogados todavia.
+
+### Como debe interpretarlos un analista
+
+Usa el dominio de atencion como orientacion, no como veredicto. La secuencia recomendada es:
+
+1. confirmar el `risk_type` y la entidad en Falcon;
+2. usar el dominio de atencion para entender el frente tecnico;
+3. revisar la accion recomendada y la evidencia disponible;
+4. validar owner, criticidad, uso legitimo y ventana de cambio;
+5. ajustar la prioridad si el contexto del cliente cambia el impacto.
+
+Si aparece `Unclassified`, significa que CrowdStrike devolvio un tipo de riesgo que el proyecto todavia no tiene catalogado. En ese caso se debe revisar el payload, confirmar significado operativo y agregar metadata al `risk_catalog.py` antes de usarlo como criterio recurrente.
 
 ## Nota sobre severidad
 
@@ -702,10 +761,100 @@ Orden sugerido para un analista:
 
 1. abrir el archivo `Identity_Risk_Assessment_<deliverable_name>_<YYYY-MM-DD>.xlsx`
 2. revisar `Resumen Ejecutivo`
-3. revisar `Rutas de Ataque`
-4. revisar `Correlacion Ciclo Vida`
-5. revisar las hojas tematicas por dominio tecnico
-6. revisar `Auditoria - Errores` solo si hubo comportamientos no esperados
+3. trabajar primero `Plan de Atencion`, empezando por `P1` y `Atencion inmediata`
+4. revisar `Riesgos Prioritarios` para entender concentracion, volumen y dominio de atencion
+5. revisar `Entidades Criticas` para identificar cuentas o activos con riesgo correlacionado
+6. revisar `Rutas de Ataque` si la hoja existe
+7. usar `Detalle Operativo` para validar evidencia, impacto y accion recomendada antes de remediar
+
+## Guia L1 de atencion
+
+Esta guia esta pensada para analistas L1 de MSSP. El objetivo del L1 no es cerrar la remediacion tecnica por cuenta propia, sino ordenar hallazgos, validar lo basico, documentar evidencia y escalar correctamente.
+
+### Antes de compartir con cliente
+
+No compartas el reporte como entregable final si ocurre cualquiera de estos casos:
+
+- el Excel no se genero o el nombre del archivo no corresponde al cliente;
+- `FALCON_TARGET_DOMAIN` o `FALCON_DELIVERABLE_NAME` no corresponden al cliente actual;
+- la consola muestra `Parser errors` o `Structure issues` mayores que cero;
+- aparece un dominio `Unclassified` o un riesgo que el equipo no ha validado;
+- hay dudas sobre si la corrida apunta a la region correcta de CrowdStrike.
+
+Si aparece `Requires review` mayor que cero, no cierres esos casos. Puedes usar el reporte para revision interna, pero las filas afectadas deben ser validadas por L2 antes de presentarlas como conclusion final.
+
+### Flujo de trabajo recomendado
+
+1. Confirmar archivo y cliente:
+   abre el Excel generado y valida que el dominio de `Resumen Ejecutivo` sea el cliente correcto.
+2. Revisar salud de la corrida:
+   en consola valida `Parser errors`, `Structure issues`, `Unknown risk types` y `Requires review`.
+3. Priorizar:
+   en `Plan de Atencion`, filtra primero `Prioridad de revision = P1` y `Estado sugerido = Atencion inmediata`.
+4. Validar en Falcon:
+   abre el `Enlace Falcon` de cada fila prioritaria y confirma entidad, tipo de riesgo y contexto visible.
+5. Preparar ticket:
+   usa `Riesgo`, `Impacto probable`, `Evidencia disponible` y `Accion recomendada` como base del ticket.
+6. Revisar concentracion:
+   usa `Riesgos Prioritarios` para entender si el problema es masivo o focalizado.
+7. Revisar entidades:
+   usa `Entidades Criticas` para identificar cuentas o activos que acumulan varios tipos de riesgo.
+8. Escalar:
+   escala a L2 si el hallazgo es P1, si requiere investigacion guiada, si toca privilegios, Kerberos, AD CS, movimiento lateral o si no entiendes la evidencia.
+
+### Como leer prioridad y accionabilidad
+
+- `P1`: atender primero. Crear ticket y escalar a L2 si requiere investigacion, privilegios, movimiento lateral o cambios sensibles.
+- `P2`: validar contexto en Falcon y preparar plan de remediacion. Escalar si el owner, impacto o evidencia no son claros.
+- `P3`: tratar como mejora operativa o higiene. Puede agruparse con otros hallazgos del mismo dominio.
+- `Accion directa`: el hallazgo normalmente permite una remediacion concreta, pero el cliente debe confirmar owner, ventana y posible impacto.
+- `Validacion en Falcon`: no remediar sin confirmar entidad, contraparte, fecha, origen o contexto adicional.
+- `Investigacion guiada`: no cerrar en L1; requiere investigacion o confirmacion de L2/SOC/Identity.
+
+### Cuando pedir apoyo
+
+Pide apoyo a L2 o al responsable interno si:
+
+- el enlace Falcon no abre o apunta a una region inesperada;
+- la entidad es privilegiada, administrativa, de servicio o critica;
+- hay `Stealthy privileges`, `KRBTGT`, `AD CS`, `Pass-the-hash`, `Lateral Movement` o `Attack Path`;
+- la accion recomendada implica deshabilitar cuentas, cambiar politicas, rotar credenciales sensibles o tocar controladores de dominio;
+- el cliente pregunta si el hallazgo es incidente confirmado;
+- el reporte muestra datos que no coinciden con el tenant o el alcance esperado.
+
+### Plantilla corta para ticket MSSP
+
+```text
+Titulo:
+[Identity Protection] <Riesgo> en <Entidad> - <Prioridad>
+
+Resumen:
+Se detecto <Riesgo> sobre <Entidad>. Dominio de atencion: <Dominio de atencion>.
+
+Impacto probable:
+<Impacto probable del Excel>
+
+Evidencia:
+<Evidencia disponible del Excel>
+Enlace Falcon: <Enlace Falcon>
+
+Accion recomendada:
+<Accion recomendada del Excel>
+
+Validacion L1:
+- Cliente/dominio confirmado: Si/No
+- Entidad revisada en Falcon: Si/No
+- Requiere L2: Si/No
+- Motivo de escalamiento: <motivo si aplica>
+```
+
+### Plantilla corta para comentario al cliente
+
+```text
+Durante la revision de Identity Protection se identificaron hallazgos priorizados por impacto operativo y concentracion.
+Se recomienda iniciar por los elementos P1 del Plan de Atencion, validar owner y uso legitimo de las entidades afectadas, y coordinar ventanas de remediacion para las acciones que impliquen cambios de cuenta, privilegios o configuracion.
+Los hallazgos marcados como investigacion o validacion requieren confirmacion adicional en Falcon antes de considerarse cerrados.
+```
 
 <details>
 <summary><strong>Cambio de cliente en entorno MSSP</strong></summary>
@@ -808,7 +957,9 @@ Ejecuta el script con el interprete de la `.venv`:
 
 ## Referencias tecnicas para analistas
 
-Esta seccion no forma parte del pipeline ni del reporte final. Es material de apoyo para que un analista entienda por que ciertas familias o hallazgos son relevantes en identidad, autenticacion, privilegios y movimiento lateral.
+Esta seccion no forma parte del pipeline ni del reporte final. Es material de apoyo para que un analista entienda por que ciertos dominios de atencion o hallazgos son relevantes en identidad, autenticacion, privilegios y movimiento lateral.
+
+Los dominios de atencion usados por el proyecto son una agrupacion operativa local. No deben presentarse como un estandar oficial. Lo oficial es el hallazgo que devuelve CrowdStrike y, para fundamentar la atencion, las fuentes tecnicas de referencia como Microsoft Learn, MITRE ATT&CK y NIST. Los dominios ayudan a ordenar el trabajo, conectar hallazgos con responsables tecnicos y explicar impacto de forma clara.
 
 Los enlaces de esta seccion fueron revisados durante el mantenimiento del proyecto y se priorizaron fuentes con buen valor operativo para analistas:
 
@@ -822,10 +973,41 @@ Los enlaces de esta seccion fueron revisados durante el mantenimiento del proyec
 Si no sabes por donde empezar, usa este orden:
 
 1. leer `Windows Authentication Overview` para entender el terreno base
-2. ubicar la familia del hallazgo en la lista de abajo
+2. ubicar el dominio de atencion del hallazgo en la lista de abajo
 3. leer primero la referencia de Microsoft Learn o NIST
 4. luego abrir ATT&CK si el hallazgo sugiere abuso o actividad adversaria
 5. usar SpecterOps cuando el hallazgo toque AD CS, Kerberos o escalamiento en Active Directory
+
+### Mapa rapido de ayuda por dominio
+
+Usa esta tabla cuando no sepas por donde empezar o que referencia consultar primero.
+
+| Dominio de atencion | Que significa para L1 | Primera referencia | Escalar si ves |
+| --- | --- | --- | --- |
+| `Password Hygiene` | Problemas de contrasena, rotacion, politica o reutilizacion. | Microsoft Entra Password Protection | Cuentas privilegiadas, cuentas de servicio o cambios masivos de politica. |
+| `Identity Hygiene` | Identidades compartidas o baja trazabilidad. | Windows Authentication Overview | Cuentas usadas por varias personas, servicios criticos o falta de owner. |
+| `Account Lifecycle` | Cuentas inactivas, obsoletas o con uso inesperado. | Microsoft Entra ID Governance | Cuenta administrativa, servicio productivo o duda sobre deshabilitar. |
+| `Access Change` | Acceso nuevo o cambio que requiere confirmacion. | Identity Governance / Lifecycle Workflows | Acceso a servidores criticos o actividad fuera de horario. |
+| `Behavioral Anomaly` | Comportamiento fuera de linea base. | MITRE ATT&CK Enterprise tactics | Actividad repetida, origen sospechoso o posible incidente. |
+| `Endpoint Exposure` | Riesgo indirecto por endpoint compartido, stale o riesgoso. | Windows Authentication Overview | Endpoint no gestionado, compartido o usado por privilegios. |
+| `Endpoint Hardening` | Configuracion debil en endpoint o protocolo. | SMB signing / NTLM overview | Cambios que afecten compatibilidad o sistemas heredados. |
+| `Endpoint Posture` | Sistema vulnerable o desactualizado. | Referencias internas de patching del cliente | Activo critico, servidor o sistema sin owner claro. |
+| `Directory Hardening` | Debilidades en LDAP, LDAPS o directorio. | LDAP signing for AD DS | Controladores de dominio, relay o cambios de GPO. |
+| `Credential Abuse` | Riesgo de abuso de credenciales. | MITRE Credential Access | Pass-the-hash, brute force, robo de credenciales o cuenta privilegiada. |
+| `Kerberos Exposure` | Exposicion relacionada con Kerberos, SPN o KRBTGT. | Kerberos authentication overview | KRBTGT, SPN en cuenta sensible o dudas sobre rotacion. |
+| `Certificate Exposure` | Riesgo por AD CS o plantillas de certificados. | AD CS overview / SpecterOps | Cualquier cambio en plantillas, enrollment o autenticacion por certificado. |
+| `Privilege Exposure` | Privilegios o cuentas con impacto alto. | Attractive Accounts for Credential Theft | Privilegios discretos, administrador, endpoint no gestionado o cuenta critica. |
+| `Lateral Movement` | Relaciones o rutas que habilitan movimiento lateral. | MITRE Lateral Movement | Attack path, admin share, sesiones privilegiadas o activo critico. |
+| `Threat Activity` | Senales de actividad adversaria o investigacion activa. | MITRE ATT&CK Enterprise tactics | Posible incidente, reconocimiento, RPC anomalo, scanning o brute force. |
+| `Unclassified` | El proyecto aun no tiene clasificacion para ese riesgo. | Revisar Falcon y escalar internamente | Siempre escalar antes de presentarlo como conclusion. |
+
+### Como elegir la referencia correcta
+
+- Si el hallazgo es de postura o configuracion, empieza por Microsoft Learn.
+- Si el hallazgo parece actividad adversaria, usa MITRE ATT&CK para explicar tactica e impacto.
+- Si el hallazgo es de autenticacion fuerte o gobierno de identidad, usa NIST y Microsoft Learn.
+- Si el hallazgo toca AD CS, Kerberos avanzado o escalamiento en Active Directory, usa SpecterOps y escala a L2.
+- Si no entiendes el riesgo despues de leer la referencia sugerida, no improvises: documenta lo visto en Falcon y pide apoyo.
 
 ### Fundamentos de identidad y autenticacion
 
