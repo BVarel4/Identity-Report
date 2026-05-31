@@ -50,6 +50,8 @@ SHAPE_LABELS = {
     "DuplicatePasswordRiskEntityFactor": "Riesgo especializado de reutilizacion de contrasena",
     "LinkedAccountsRiskEntityFactor": "Riesgo especializado de cuentas vinculadas",
     "CertificateTemplateAuthenticationBasedRiskFactor": "Riesgo especializado de plantilla de certificado",
+    "ServicePrincipalNameBasedRiskFactor": "Riesgo especializado de Service Principal Name",
+    "UsesLocallyAdministratedMachinesRiskFactor": "Riesgo especializado de administracion local",
     "EntityRiskFactorImpl": "Indicador base de CrowdStrike",
 }
 

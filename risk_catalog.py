@@ -24,6 +24,13 @@ RISK_CATALOG = {
         "Amplia la ventana de exposicion frente a filtraciones, reutilizacion o compromiso previo de credenciales.",
         "Validar necesidad operativa de la cuenta y aplicar rotacion de contrasena acorde con su criticidad y uso real.",
     ),
+    "ABNORMAL_SERVICE_ACCESS": _entry(
+        "Abnormal service access",
+        "Behavioral Anomaly",
+        "La entidad presenta acceso a servicios fuera del patron esperado para su comportamiento habitual.",
+        "Puede indicar uso indebido de credenciales, desplazamiento lateral o actividad administrativa no justificada.",
+        "Validar el servicio accedido, origen, horario y legitimidad operativa; escalar si involucra privilegios o sistemas criticos.",
+    ),
     "ANOMALOUS_RPC": _entry(
         "Anomalous RPC activity",
         "Threat Activity",
@@ -37,6 +44,13 @@ RISK_CATALOG = {
         "La identidad aparece asociada con un endpoint que CrowdStrike considera riesgoso dentro del contexto de Identity Protection.",
         "Puede indicar exposicion indirecta de la cuenta a robo de credenciales, sesion comprometida o uso desde un activo con postura insegura.",
         "Revisar el endpoint relacionado, validar sesiones recientes y confirmar si la cuenta requiere contencion, rotacion o restricciones adicionales.",
+    ),
+    "AUTHENTICATE_AS_ANY_DOMAIN_USER_WITH_CERTIFICATE_REQUEST_AGENT_WITHOUT_ANY_RESTRICTIONS": _entry(
+        "Certificate request agent can authenticate as any domain user without restrictions",
+        "Certificate Exposure",
+        "La configuracion de AD CS permite usar un agente de solicitud de certificados para autenticarse como cualquier usuario del dominio sin restricciones suficientes.",
+        "Puede habilitar suplantacion de usuarios, escalamiento de privilegios y acceso persistente mediante certificados.",
+        "Escalar a L2 o al equipo de AD CS para revisar restricciones de enrollment agent, permisos de plantillas, issuance requirements y controles de autenticacion.",
     ),
     "CERTIFICATE_TEMPLATE_ALLOWS_AUTHENTICATION_AS_ANY_DOMAIN_USER": _entry(
         "Certificate template allows authentication as any domain user",
@@ -72,6 +86,20 @@ RISK_CATALOG = {
         "La entidad comparte una contrasena con otra identidad observada en el entorno.",
         "Favorece compromiso transversal y propagacion de impacto entre cuentas.",
         "Forzar cambio de contrasena, revisar reutilizacion y aplicar controles de unicidad.",
+    ),
+    "DUPLICATED_LOCAL_ADMINISTRATOR": _entry(
+        "Duplicated local administrator",
+        "Privilege Exposure",
+        "El endpoint comparte credenciales o configuracion de administrador local con otros equipos.",
+        "La reutilizacion de administradores locales facilita compromiso transversal y movimiento lateral si una credencial local queda expuesta.",
+        "Revisar administradores locales, aplicar credenciales unicas por equipo mediante LAPS o controles equivalentes y retirar privilegios locales innecesarios.",
+    ),
+    "GUEST_ACCOUNT_ENABLED": _entry(
+        "Guest account enabled",
+        "Account Lifecycle",
+        "La cuenta invitado aparece habilitada en la entidad evaluada.",
+        "Una cuenta invitado activa aumenta la superficie de acceso anonimo o de baja trazabilidad, especialmente en endpoints compartidos o heredados.",
+        "Validar necesidad operativa y deshabilitar la cuenta invitado si no existe una excepcion documentada.",
     ),
     "HAS_ATTACK_PATH": _entry(
         "Attack path exposure",
@@ -213,6 +241,13 @@ RISK_CATALOG = {
         "Aumenta riesgo de relay y manipulacion de trafico SMB durante autenticacion o acceso.",
         "Habilitar SMB signing y validar impacto en compatibilidad de sistemas heredados.",
     ),
+    "SPOOLER_SERVICE_RUNNING": _entry(
+        "Print spooler service running",
+        "Endpoint Hardening",
+        "El servicio de cola de impresion esta activo en la entidad evaluada.",
+        "En servidores sensibles o controladores de dominio puede ampliar la superficie de ataque y facilitar abuso de servicios de impresion.",
+        "Confirmar si el servicio es necesario; deshabilitarlo en sistemas donde no se requiera impresion y priorizar controladores de dominio o servidores criticos.",
+    ),
     "STALE_ACCOUNT": _entry(
         "Stale account",
         "Account Lifecycle",
@@ -241,6 +276,20 @@ RISK_CATALOG = {
         "Esto favorece persistencia, escalamiento y abuso encubierto.",
         "Revisar membresias, delegaciones y privilegios efectivos; aplicar minimo privilegio.",
     ),
+    "SUSPICIOUS_SPN": _entry(
+        "Suspicious SPN",
+        "Kerberos Exposure",
+        "La entidad tiene un Service Principal Name que CrowdStrike considera sospechoso o inusual.",
+        "Puede incrementar exposicion a abuso de Kerberos, kerberoasting o configuraciones de servicio no esperadas.",
+        "Validar el SPN, servicio asociado y propietario; retirar SPNs innecesarios y revisar privilegios de la cuenta vinculada.",
+    ),
+    "USES_LOCALLY_ADMINISTRATED_MACHINES": _entry(
+        "Uses locally administrated machines",
+        "Privilege Exposure",
+        "La identidad utiliza equipos donde existen privilegios de administracion local relevantes.",
+        "Puede exponer credenciales o sesiones a abuso local y facilitar movimiento lateral desde endpoints administrados de forma inconsistente.",
+        "Validar los equipos asociados, reducir administradores locales persistentes y limitar el uso de cuentas sensibles en endpoints con administracion local amplia.",
+    ),
     "VULNERABLE_OS": _entry(
         "Vulnerable operating system",
         "Endpoint Posture",
@@ -254,6 +303,13 @@ RISK_CATALOG = {
         "La configuracion de compatibilidad NTLM observada en la entidad es mas permisiva de lo recomendado.",
         "Puede facilitar abuso de autenticacion heredada, relay, downgrade o reutilizacion de mecanismos NTLM menos robustos.",
         "Revisar la politica NTLM efectiva, endurecer el nivel de compatibilidad y reducir la dependencia de protocolos heredados cuando sea viable.",
+    ),
+    "WATCHED": _entry(
+        "Watched identity",
+        "Identity Correlation",
+        "La entidad esta marcada para observacion o seguimiento especial dentro de CrowdStrike Identity Protection.",
+        "No necesariamente representa compromiso por si sola, pero senala que la identidad requiere mayor atencion por contexto, criticidad o correlaciones previas.",
+        "Validar en Falcon el motivo de seguimiento, revisar riesgos asociados y priorizar si la identidad tiene privilegios o actividad reciente sensible.",
     ),
     "WEAK_PASSWORD": _entry(
         "Weak password",
