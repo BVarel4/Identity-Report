@@ -32,35 +32,35 @@ ANSI_CODES = {
 }
 
 TONE_LABELS = {
-    "info": "SCAN",
-    "success": "SYNC",
+    "info": "SIGNAL",
+    "success": "OK",
     "warning": "WARN",
     "error": "FAIL",
 }
 
 SECTION_THEMES = {
-    "pipeline": ("STAGE 00", "PRE-FLIGHT CHECK", "bright_cyan"),
-    "fase discovery": ("STAGE 01", "DISCOVERY MATRIX", "bright_magenta"),
-    "fase detail": ("STAGE 02", "DETAIL EXTRACTION", "bright_cyan"),
-    "render final": ("STAGE 03", "REPORT SYNTHESIS", "bright_yellow"),
-    "auditoria del parseo": ("STAGE 04", "AUDIT TRACE", "bright_red"),
-    "top riesgos": ("PANEL", "TOP RISK SIGNALS", "bright_blue"),
-    "archivos generados": ("PANEL", "ARTIFACT MANIFEST", "bright_green"),
+    "pipeline": ("PHASE 0/5", "PRE-FLIGHT", "bright_cyan"),
+    "fase discovery": ("PHASE 1/5", "DISCOVERY MATRIX", "bright_cyan"),
+    "fase detail": ("PHASE 2/5", "DETAIL EXTRACTION", "bright_cyan"),
+    "render final": ("PHASE 3/5", "REPORT SYNTHESIS", "bright_cyan"),
+    "auditoria del parseo": ("PHASE 4/5", "AUDIT TRACE", "bright_yellow"),
+    "top riesgos": ("PANEL", "TOP RISK SIGNALS", "bright_cyan"),
+    "archivos generados": ("PANEL", "ARTIFACT MANIFEST", "bright_cyan"),
     "advertencias": ("PANEL", "WARNING BUS", "bright_yellow"),
-    "resumen final": ("STAGE 05", "MISSION DEBRIEF", "bright_green"),
+    "resumen final": ("PHASE 5/5", "INTEGRITY CHECK", "bright_cyan"),
 }
 
 SESSION_BOOT_TIME = datetime.now()
 STATUS_LABEL_WIDTH = 24
 PROGRESS_LABEL_WIDTH = 14
 PROGRESS_METER_WIDTH = 22
-NEON_RULE = "-=::=-"
-ASCII_LOGO = [
-    "  ___ ____  _____ _   _ _____ ___ _______   __",
-    " |_ _|  _ \\| ____| \\ | |_   _|_ _|_   _\\ \\ / /",
-    "  | || | | |  _| |  \\| | | |  | |  | |  \\ V / ",
-    "  | || |_| | |___| |\\  | | |  | |  | |   | |  ",
-    " |___|____/|_____|_| \\_| |_| |___| |_|   |_|  ",
+NEON_RULE = "-"
+MISSION_BANNER = [
+    "       ___ ____  _____ _   _ _____ ___ _______   __   ____  ___ ____  _  __",
+    "      |_ _|  _ \\| ____| \\ | |_   _|_ _|_   _\\ \\ / /  |  _ \\|_ _/ ___|| |/ /",
+    "       | || | | |  _| |  \\| | | |  | |  | |  \\ V /   | |_) || |\\___ \\| ' / ",
+    "       | || |_| | |___| |\\  | | |  | |  | |   | |    |  _ < | | ___) | . \\ ",
+    "      |___|____/|_____|_| \\_| |_| |___| |_|   |_|    |_| \\_\\___|____/|_|\\_\\",
 ]
 
 
@@ -271,15 +271,13 @@ def glyph(unicode_text: str, ascii_text: str) -> str:
 def make_rule(width: int = 42, char: str = "=") -> str:
     """Build a decorative ASCII rule for consistent Windows console output."""
     safe_width = max(12, width)
-    if char == "=":
-        repeated = (NEON_RULE * ((safe_width // len(NEON_RULE)) + 1))[:safe_width]
-        return repeated
-    return char * safe_width
+    marker = "-" if char in {"=", "-"} else char
+    return marker * safe_width
 
 
 def make_panel_prefix(label: str) -> str:
     """Render a short cyberpunk-style panel tag."""
-    return f"[[ {label} ]]"
+    return f"[ {label} ]"
 
 
 def format_runtime() -> str:
@@ -330,16 +328,38 @@ def box_center_row(text: str, width: int) -> str:
     return f"| {center_text(text, inner_width)} |"
 
 
+def print_box_row(text: str, width: int, text_color: str = "gray", bold: bool = False) -> None:
+    """Print a framed row while keeping the frame color stable."""
+    inner_width = max(10, width - 4)
+    payload = fit_text(text, inner_width).ljust(inner_width)
+    print(
+        colorize("| ", "gray")
+        + colorize(payload, text_color, bold=bold)
+        + colorize(" |", "gray")
+    )
+
+
+def print_box_center_row(text: str, width: int, text_color: str = "gray", bold: bool = False) -> None:
+    """Print a centered framed row while keeping the frame color stable."""
+    inner_width = max(10, width - 4)
+    payload = center_text(text, inner_width)
+    print(
+        colorize("| ", "gray")
+        + colorize(payload, text_color, bold=bold)
+        + colorize(" |", "gray")
+    )
+
+
 def box_border(width: int, top: bool) -> str:
     """Render the top or bottom border for a framed panel."""
-    horizontal = make_rule(width - 2, "=")
+    horizontal = make_rule(width - 2, "-")
     return f"+{horizontal}+"
 
 
 def resolve_section_theme(title: str) -> tuple[str, str, str]:
     """Map a section title to its visual theme and display label."""
     normalized = safe_text(title).strip().lower()
-    return SECTION_THEMES.get(normalized, ("PANEL", safe_text(title).upper(), "magenta"))
+    return SECTION_THEMES.get(normalized, ("PANEL", safe_text(title).upper(), "bright_cyan"))
 
 
 def build_status_chip(text: str, width: int = 9) -> str:
@@ -351,34 +371,48 @@ def resolve_flow_color(label: str) -> str:
     """Return the display color associated with a pipeline flow label."""
     normalized = safe_text(label).strip().lower()
     color_map = {
-        "discovery": "magenta",
-        "detail": "cyan",
-        "render final": "yellow",
-        "pipeline": "cyan",
-        "resumen final": "green",
+        "discovery": "bright_cyan",
+        "detail": "bright_cyan",
+        "render final": "bright_cyan",
+        "pipeline": "bright_cyan",
+        "resumen final": "bright_cyan",
     }
-    return color_map.get(normalized, "cyan")
+    return color_map.get(normalized, "bright_cyan")
 
 
 def print_banner(title: str, subtitle: str = "") -> None:
     """Render the top-level banner shown at the beginning of execution."""
     width = console_width()
-    print(colorize(box_border(width, top=True), "bright_magenta", bold=True))
-    print(colorize(box_center_row("MERCURY GRID // IDENTITY PROTECTION OPS", width), "bright_cyan", bold=True))
-    print(colorize(box_center_row("NEON REPORT SEQUENCE INITIALIZED", width), "bright_magenta", bold=True))
-    print(colorize(box_row("", width), "gray"))
-    for index, line in enumerate(ASCII_LOGO):
-        logo_color = "bright_cyan" if index % 2 == 0 else "bright_magenta"
-        print(colorize(box_center_row(line, width), logo_color, bold=True))
-    print(colorize(box_row("", width), "gray"))
-    print(colorize(box_center_row(title.upper(), width), "white", bold=True))
-    print(colorize(box_center_row("Built by Bryan Varela Vargas (W4rded)", width), "gray"))
-    if subtitle:
-        print(colorize(box_center_row(subtitle, width), "bright_yellow"))
-    print(colorize(box_row("", width), "gray"))
-    print(colorize(box_center_row("SESSION=IDENTITY_REPORT  MODE=CYBERPUNK_MSSP  CHANNEL=SECURE", width), "bright_green"))
-    print(colorize(box_center_row(f"RUNTIME={format_runtime()}  TRACE={build_trace_code(title)}", width), "gray"))
-    print(colorize(box_border(width, top=False), "bright_magenta", bold=True))
+    brand = (
+        colorize("  []  ", "bright_magenta", bold=True)
+        + colorize("M E R C U R Y", "bright_cyan", bold=True)
+        + colorize("  ///  IDENTITY RISK SEQUENCE", "bright_magenta", bold=True)
+        + colorize("  //  MSSP CYBER OPS", "gray")
+    )
+    print(brand)
+    print(colorize(box_border(width, top=True), "gray"))
+    for index, line in enumerate(MISSION_BANNER):
+        banner_color = "bright_cyan" if index in {0, 4} else "gray"
+        print_box_center_row(line, width, banner_color, bold=index in {0, 4})
+    print_box_center_row(
+        "IDENTITY PROTECTION TELEMETRY  //  RISK ATTENTION PIPELINE",
+        width,
+        "bright_magenta",
+        bold=True,
+    )
+    print_box_center_row(
+        "DISCOVER  >  PARSE  >  CORRELATE  >  PRIORITIZE  >  REPORT",
+        width,
+        "bright_cyan",
+        bold=True,
+    )
+
+    session_payload = f" SESSION > {fit_text(title, 48)}  |  RUNTIME > {format_runtime()} "
+    trace_payload = f" TARGET > {fit_text(subtitle or 'not-set', 48)}  |  TRACE > {build_trace_code(title)} "
+    print_box_row(session_payload, width, "white", bold=True)
+    print_box_row(trace_payload, width, "gray")
+    print_box_row(" AUTHOR > Bryan Varela Vargas  |  AKA > W4rded ", width, "gray")
+    print(colorize(box_border(width, top=False), "gray"))
 
 
 def print_section(title: str, subtitle: str = "") -> None:
@@ -386,15 +420,14 @@ def print_section(title: str, subtitle: str = "") -> None:
     print()
     width = console_width()
     phase_label, display_title, color = resolve_section_theme(title)
-    branch = "::"
-    header = (
-        f"{make_panel_prefix(phase_label)} {display_title} "
-        f"// trace={build_trace_code(display_title)}"
-    )
-    rule_width = max(12, width - len(header) - 7)
-    print(colorize(f"{branch} {fit_text(header, width - 2)} {make_rule(rule_width, '-')}", color, bold=True))
+    badge = colorize(make_panel_prefix(phase_label), "bright_magenta", bold=True)
+    display = colorize(f" {display_title}", color, bold=True)
+    trace = colorize(f" [{build_trace_code(display_title)}]", "gray")
+    used_width = len(phase_label) + len(display_title) + 18
+    rule_width = max(8, width - used_width)
+    print(f"{badge}{display} {colorize(make_rule(rule_width, '-'), 'gray')}{trace}")
     if subtitle:
-        print(colorize(f"   -> {fit_text(subtitle, width - 7)}", "gray"))
+        print(colorize(f"    {fit_text(subtitle, width - 5)}", "gray"))
 
 
 def print_status(label: str, message: str, tone: str = "info") -> None:

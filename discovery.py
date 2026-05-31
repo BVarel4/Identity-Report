@@ -21,6 +21,7 @@ def get_falcon_client(settings: Settings):
     return IdentityProtection(
         client_id=settings.client_id,
         client_secret=settings.client_secret,
+        base_url=settings.falcon_base_url,
     )
 
 

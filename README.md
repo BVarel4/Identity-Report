@@ -1,65 +1,322 @@
 # Generador de Reporte de Riesgos de Identity Protection desde CrowdStrike
 
-Pipeline en Python para consultar CrowdStrike Identity Protection por GraphQL usando FalconPy, descubrir riesgos en un dominio, interpretarlos por tipo y generar un reporte tecnico final en Excel, junto con artefactos intermedios de analisis y auditoria.
+Pipeline en Python para consultar CrowdStrike Identity Protection mediante GraphQL y FalconPy, descubrir riesgos asociados a un dominio, interpretar los hallazgos por tipo de riesgo y generar un reporte final en Excel para análisis técnico, priorización y seguimiento operativo.
 
-**Desarrollado por:** Bryan Varela Vargas (Aka. W4rded)  
+El proyecto está diseñado para equipos SOC, MSSP y analistas de identidad que necesitan convertir hallazgos de CrowdStrike Identity Protection en una salida accionable, reutilizable y trazable.
+
+**Desarrollado por:** Bryan Varela Vargas
+**Alias:** W4rded
 **Rol:** Cybersecurity Analyst
 
-## Proposito del proyecto
+---
 
-Este proyecto existe para convertir hallazgos de CrowdStrike Identity Protection en un reporte tecnico y ejecutivo reutilizable para distintos clientes.
+## Tabla de contenido
 
-Su proposito principal es:
+* [Propósito](#propósito)
+* [Qué hace el proyecto](#qué-hace-el-proyecto)
+* [Salida esperada](#salida-esperada)
+* [Requisitos](#requisitos)
+* [Instalación rápida](#instalación-rápida)
+* [Configuración](#configuración)
+* [Permisos de API en CrowdStrike](#permisos-de-api-en-crowdstrike)
+* [Uso](#uso)
+* [Flujo funcional](#flujo-funcional)
+* [Estructura del proyecto](#estructura-del-proyecto)
+* [Arquitectura interna](#arquitectura-interna)
+* [Organización de salidas](#organización-de-salidas)
+* [Modos de retención de artefactos](#modos-de-retención-de-artefactos)
+* [Hojas del Excel](#hojas-del-excel)
+* [Dominios de atención](#dominios-de-atención)
+* [Severidad](#severidad)
+* [Validación posterior a la ejecución](#validación-posterior-a-la-ejecución)
+* [Uso en entorno MSSP](#uso-en-entorno-mssp)
+* [Troubleshooting](#troubleshooting)
+* [Limitaciones conocidas](#limitaciones-conocidas)
+* [Mejoras futuras](#mejoras-futuras)
+* [Referencias](#referencias)
 
-- automatizar discovery, conteo, parseo y correlacion de riesgos de identidad;
-- presentar los resultados en un Excel listo para analistas y responsables tecnicos;
-- dejar trazabilidad controlada para evolucionar parsers y auditar cambios futuros;
-- reducir trabajo manual de exportacion, interpretacion y consolidacion de hallazgos.
+---
 
-En otras palabras: toma datos de Identity Protection, los organiza, los contextualiza y los transforma en una salida accionable para equipos de tecnologia y seguridad.
+## Propósito
 
-## Contenido
+El objetivo del proyecto es automatizar el proceso de consulta, conteo, parseo, correlación y presentación de riesgos de identidad detectados por CrowdStrike Identity Protection.
 
-- [Proposito del proyecto](#proposito-del-proyecto)
-- [Objetivo](#objetivo)
-- [Estructura](#estructura)
-- [Requisitos](#requisitos)
-- [Setup en Windows](#setup-en-windows)
-  - [Ruta 1. Solo ejecucion](#ruta-1-solo-ejecucion)
-  - [Ruta 2. Desarrollo](#ruta-2-desarrollo)
-- [Instalacion rapida](#instalacion-rapida)
-- [Permisos de API en CrowdStrike](#permisos-de-api-en-crowdstrike)
-- [Configuracion](#configuracion)
-- [Uso](#uso)
-- [Flujo funcional](#flujo-funcional)
-- [Arquitectura interna](#arquitectura-interna)
-- [Organizacion de salidas](#organizacion-de-salidas)
-- [Retencion de artefactos sensibles](#retencion-de-artefactos-sensibles)
-- [Nota sobre `output/`](#nota-sobre-output)
-- [Hojas del Excel](#hojas-del-excel)
-- [Dominios de atencion](#dominios-de-atencion)
-- [Nota sobre severidad](#nota-sobre-severidad)
-- [Revision recomendada despues de ejecutar](#revision-recomendada-despues-de-ejecutar)
-- [Guia L1 de atencion](#guia-l1-de-atencion)
-- [Cambio de cliente en entorno MSSP](#cambio-de-cliente-en-entorno-mssp)
-- [Troubleshooting](#troubleshooting)
-- [Referencias tecnicas para analistas](#referencias-tecnicas-para-analistas)
-- [Nota para analistas](#nota-para-analistas)
-- [Limitaciones conocidas](#limitaciones-conocidas)
+La salida principal es un workbook de Excel orientado a revisión técnica y priorización operativa. El pipeline también puede generar artefactos intermedios en JSON y CSV para auditoría, depuración de parsers y análisis de estructuras no soportadas.
 
-## Objetivo
+En términos prácticos, el proyecto toma datos de Identity Protection, los organiza, los contextualiza y los transforma en un reporte reutilizable para equipos de tecnología, identidad y seguridad.
 
-Este proyecto automatiza el flujo para:
+---
 
-- descubrir todos los `riskFactors.type` presentes en un dominio;
-- contar y clasificar riesgos;
-- aplicar parsers por tipo de riesgo;
-- interpretar rutas de ataque y riesgos tecnicos;
-- correlacionar hallazgos por entidad;
-- registrar auditoria de errores, estructuras inesperadas y tipos sin soporte;
-- generar JSON, CSV y un Excel tecnico final.
+## Qué hace el proyecto
 
-## Estructura
+El pipeline automatiza las siguientes tareas:
+
+* Descubre todos los `riskFactors.type` presentes en un dominio.
+* Cuenta y clasifica riesgos por tipo.
+* Aplica parsers específicos según el tipo de riesgo.
+* Interpreta rutas de ataque y riesgos técnicos cuando el payload lo permite.
+* Correlaciona hallazgos por entidad.
+* Registra auditoría de errores, estructuras inesperadas y tipos de riesgo no soportados.
+* Genera artefactos técnicos en JSON y CSV.
+* Genera un Excel final orientado a análisis, priorización y seguimiento.
+
+---
+
+## Salida esperada
+
+El entregable principal es un archivo Excel con un nombre similar a:
+
+```text
+Identity_Risk_Assessment_<deliverable_name>_<YYYY-MM-DD>.xlsx
+```
+
+Ejemplo:
+
+```text
+Identity_Risk_Assessment_ACME_2026-04-20.xlsx
+```
+
+La ubicación del Excel final depende de `FALCON_OUTPUT_DIR`. El código genera el archivo en el directorio padre de esa ruta.
+
+Con la configuración por defecto:
+
+```powershell
+$env:FALCON_OUTPUT_DIR="output"
+```
+
+el Excel final se genera en la raíz del proyecto, porque el directorio padre de `output/` es la carpeta base del repositorio.
+
+Si defines una ruta personalizada, por ejemplo:
+
+```powershell
+$env:FALCON_OUTPUT_DIR="C:\Temp\identity_output"
+```
+
+el Excel final quedará en:
+
+```text
+C:\Temp\
+```
+
+Si ya existe un archivo con el mismo nombre para la misma fecha, el proyecto crea una versión incremental para evitar sobreescritura:
+
+```text
+Identity_Risk_Assessment_ACME_2026-04-20_v2.xlsx
+Identity_Risk_Assessment_ACME_2026-04-20_v3.xlsx
+```
+
+## Requisitos
+
+### Requisitos generales
+
+* Python 3.10 o superior.
+* Acceso a CrowdStrike Falcon.
+* Identity Protection habilitado en el tenant.
+* API Client con permisos de Identity Protection.
+* PowerShell en Windows.
+
+### Requisitos para desarrollo
+
+* Git.
+* Editor de código, por ejemplo Visual Studio Code.
+* Conocimiento básico de Python, GraphQL y estructuras JSON.
+
+### Dependencias de Python
+
+Las dependencias principales son:
+
+```text
+crowdstrike-falconpy
+openpyxl
+```
+
+Deben estar declaradas en `requirements.txt`.
+
+---
+
+## Instalación rápida
+
+Usa este flujo si vas a clonar el repositorio y ejecutar el proyecto desde cero.
+
+```powershell
+git clone <URL_DEL_REPOSITORIO>
+cd Identity_Report
+
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+Verifica que las dependencias principales se hayan instalado correctamente:
+
+```powershell
+python -c "import falconpy; print(falconpy.__version__)"
+python -c "import openpyxl; print(openpyxl.__version__)"
+```
+
+Si ambos comandos imprimen una versión, el ambiente está listo.
+
+---
+
+## Configuración
+
+El proyecto usa variables de entorno. No se recomienda hardcodear credenciales, dominios ni datos de cliente dentro del código.
+
+### Variables obligatorias
+
+| Variable               | Descripción                                                  |
+| ---------------------- | ------------------------------------------------------------ |
+| `FALCON_CLIENT_ID`     | Client ID del API Client de CrowdStrike.                     |
+| `FALCON_CLIENT_SECRET` | Client Secret del API Client de CrowdStrike.                 |
+| `FALCON_TARGET_DOMAIN` | Dominio objetivo que será consultado en Identity Protection. |
+
+### Variables recomendadas
+
+| Variable                  | Descripción                                                                    |
+| ------------------------- | ------------------------------------------------------------------------------ |
+| `FALCON_DELIVERABLE_NAME` | Nombre comercial o corto del cliente para construir el nombre del Excel final. |
+| `FALCON_BASE_URL`         | URL base regional de API de CrowdStrike.                                       |
+| `FALCON_ARTIFACT_MODE`    | Define si se conservan o eliminan artefactos intermedios.                      |
+
+### Variables opcionales
+
+| Variable                       | Valor sugerido         | Descripción                                         |
+| ------------------------------ | ---------------------- | --------------------------------------------------- |
+| `FALCON_PAGE_SIZE`             | `1000`                 | Tamaño de página para consultas paginadas.          |
+| `FALCON_OUTPUT_DIR`            | `output`               | Carpeta base para artefactos intermedios.           |
+| `FALCON_REPORT_NAME`           | `identity_risk_report` | Nombre lógico de la corrida.                        |
+| `FALCON_SAMPLE_LIMIT_PER_RISK` | `3`                    | Cantidad máxima de muestras raw por tipo de riesgo. |
+
+### Ejemplo de configuración en PowerShell
+
+```powershell
+$env:FALCON_CLIENT_ID="TU_CLIENT_ID"
+$env:FALCON_CLIENT_SECRET="TU_CLIENT_SECRET"
+$env:FALCON_TARGET_DOMAIN="cliente.local"
+$env:FALCON_DELIVERABLE_NAME="ACME"
+$env:FALCON_PAGE_SIZE="1000"
+$env:FALCON_OUTPUT_DIR="output"
+$env:FALCON_REPORT_NAME="identity_risk_report"
+$env:FALCON_SAMPLE_LIMIT_PER_RISK="3"
+$env:FALCON_BASE_URL="https://api.us-2.crowdstrike.com"
+$env:FALCON_ARTIFACT_MODE="final_only"
+```
+
+### Archivo `.env.example`
+
+El repositorio incluye un archivo `.env.example` como plantilla de referencia.
+
+Importante:
+
+* El proyecto no carga automáticamente archivos `.env`.
+* Las variables deben exportarse en la sesión de PowerShell antes de ejecutar.
+* No se deben usar valores genéricos como `Cliente`, `Test` o `Demo` en una corrida real.
+* No se deben guardar credenciales reales dentro del repositorio.
+
+### Recomendación para `FALCON_BASE_URL`
+
+Usa la URL regional de API, no la URL de consola.
+
+Ejemplos válidos:
+
+```text
+https://api.crowdstrike.com
+https://api.us-2.crowdstrike.com
+```
+
+El proyecto usa esta base para construir enlaces hacia la consola Falcon en el Excel final.
+
+Ejemplo:
+
+```text
+https://api.crowdstrike.com      -> https://falcon.crowdstrike.com
+https://api.us-2.crowdstrike.com -> https://falcon.us-2.crowdstrike.com
+```
+
+### Recomendación para `FALCON_DELIVERABLE_NAME`
+
+`FALCON_DELIVERABLE_NAME` controla el nombre oficial del Excel final.
+
+Buenas prácticas:
+
+* Usar el nombre corto del cliente o del entregable.
+* Revisarlo en cada corrida, igual que `FALCON_TARGET_DOMAIN`.
+* Evitar valores genéricos como `Cliente`, `Test`, `Demo` o `Final`.
+* Evitar reutilizar el mismo nombre para clientes distintos.
+* Evitar incluir timestamps manuales; el proyecto agrega la fecha automáticamente.
+
+Ejemplos válidos:
+
+```text
+ACME
+Cliente_XYZ
+VADER_LOCAL
+```
+
+Si no se define `FALCON_DELIVERABLE_NAME`, el proyecto usa `FALCON_TARGET_DOMAIN` como fallback.
+
+---
+
+## Permisos de API en CrowdStrike
+
+El API Client debe tener permisos de lectura sobre los módulos de Identity Protection requeridos por el proyecto.
+
+Permisos recomendados:
+
+| Permiso                                     | Nivel   |
+| ------------------------------------------- | ------- |
+| `Identity Protection Assessment`            | `Read`  |
+| `Identity Protection Detections`            | `Read`  |
+| `Identity Protection Enforcement`           | `Read`  |
+| `Identity Protection Entities`              | `Read`  |
+| `Identity Protection GraphQL`               | `Write` |
+| `Identity Protection Health`                | `Read`  |
+| `Identity Protection on-premise enablement` | `Read`  |
+| `Identity Protection Policy Rules`          | `Read`  |
+| `Identity Protection Timeline`              | `Read`  |
+
+El permiso clave para las consultas GraphQL es:
+
+```text
+Identity Protection GraphQL = Write
+```
+
+Aunque el uso principal del proyecto es de lectura, el endpoint GraphQL de Identity Protection requiere el scope `identity-protection-graphql:write`.
+
+---
+
+## Uso
+
+Una vez configuradas las variables de entorno, ejecuta:
+
+```powershell
+python main.py
+```
+
+También puedes ejecutar el script directamente con el intérprete del entorno virtual:
+
+```powershell
+.venv\Scripts\python.exe main.py
+```
+
+---
+
+## Flujo funcional
+
+El pipeline sigue este orden lógico:
+
+1. **Discovery:** detecta todos los `riskFactors.type` presentes en el dominio.
+2. **Inventory:** cuenta frecuencia y genera inventario de riesgos.
+3. **Parser selection:** decide si usar parser específico, parser especializado o fallback.
+4. **Detail extraction:** obtiene detalle por GraphQL con paginación automática.
+5. **Parsing:** transforma el payload raw en filas técnicas legibles y, cuando aplica, en filas de rutas de ataque.
+6. **Audit:** registra durante el parsing riesgos no soportados, errores de parser y estructuras inesperadas.
+7. **Reporting:** prepara correlaciones, calcula accionabilidad, exporta JSON/CSV y genera el Excel final.
+8. **Retention:** conserva o limpia artefactos intermedios según `FALCON_ARTIFACT_MODE`.
+
+## Estructura del proyecto
 
 ```text
 Identity_Report/
@@ -72,6 +329,7 @@ Identity_Report/
 |-- parsers.py
 |-- audit.py
 |-- analytics.py
+|-- actionability.py
 |-- reporting.py
 |-- utils.py
 |-- requirements.txt
@@ -80,459 +338,49 @@ Identity_Report/
 `-- output/
 ```
 
-## Requisitos
+La carpeta `output/` no necesita existir en el repositorio. El proyecto la crea automáticamente en tiempo de ejecución.
 
-### Comunes
-
-- Python 3.10 o superior
-- acceso a CrowdStrike Falcon con Identity Protection habilitado
-- credenciales API con permisos de Identity Protection
-- PowerShell en Windows
-
-### Solo para desarrollo
-
-- Git para clonar el repositorio y actualizar codigo
-
-Dependencias:
-
-```text
-crowdstrike-falconpy
-openpyxl
-```
-
-## Setup en Windows
-
-Este proyecto puede prepararse de dos formas:
-
-- `Solo ejecucion`: para analistas que solo necesitan correr el reporte
-- `Desarrollo`: para quien va a modificar codigo, actualizar parsers o mantener el proyecto
-
-<details>
-<summary><strong>Ruta 1. Solo ejecucion</strong></summary>
-
-Pensada para un analista que recibe la carpeta del proyecto ya descargada o comprimida y solo necesita ejecutarlo en Windows.
-
-#### 1. Instalar prerrequisitos del sistema
-
-Verifica que la maquina tenga:
-
-- Python 3.10 o superior
-- acceso a internet para instalar dependencias
-- acceso al tenant de CrowdStrike correspondiente
-
-Comandos de validacion:
-
-```powershell
-python --version
-```
-
-Si `python` no responde correctamente, instala Python desde `https://www.python.org/downloads/windows/` y marca la opcion `Add Python to PATH`.
-
-#### 2. Copiar o extraer el proyecto
-
-Si recibiste el proyecto como `.zip` o carpeta compartida, extraelo o copialo a una ruta local, por ejemplo:
-
-```text
-C:\Tools\Identity_Report
-```
-
-Luego entra a la carpeta:
-
-```powershell
-cd C:\Tools\Identity_Report
-```
-
-#### 3. Crear entorno virtual
-
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-```
-
-Si PowerShell bloquea la activacion por politica de ejecucion, puedes usar temporalmente:
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.venv\Scripts\Activate.ps1
-```
-
-#### 4. Actualizar `pip` e instalar dependencias
-
-```powershell
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-#### 5. Verificar dependencias clave
-
-```powershell
-python -c "import falconpy; print(falconpy.__version__)"
-python -c "import openpyxl; print(openpyxl.__version__)"
-```
-
-#### 6. Preparar variables de entorno
-
-Define al menos:
-
-- `FALCON_CLIENT_ID`
-- `FALCON_CLIENT_SECRET`
-- `FALCON_TARGET_DOMAIN`
-
-Adicional recomendado para una entrega formal:
-
-- `FALCON_DELIVERABLE_NAME`
-
-Importante:
-
-- revisa `FALCON_DELIVERABLE_NAME` en cada cliente igual que `FALCON_TARGET_DOMAIN`
-- no uses placeholders genericos como `Cliente`, `Test` o `Demo` en una corrida real
-- este valor define el nombre oficial del Excel que probablemente compartiras con el cliente
-
-Ejemplo recomendado:
-
-```powershell
-$env:FALCON_CLIENT_ID="TU_CLIENT_ID"
-$env:FALCON_CLIENT_SECRET="TU_CLIENT_SECRET"
-$env:FALCON_TARGET_DOMAIN="cliente.local"
-$env:FALCON_DELIVERABLE_NAME="ACME"
-$env:FALCON_PAGE_SIZE="1000"
-$env:FALCON_OUTPUT_DIR="output"
-$env:FALCON_REPORT_NAME="identity_risk_report"
-$env:FALCON_SAMPLE_LIMIT_PER_RISK="3"
-$env:FALCON_BASE_URL="https://api.us-2.crowdstrike.com"
-$env:FALCON_ARTIFACT_MODE="final_only"
-```
-
-#### 7. Ejecutar el pipeline
-
-```powershell
-python main.py
-```
-
-O directamente, sin activar la `.venv`:
-
-```powershell
-.venv\Scripts\python.exe main.py
-```
-
-#### 8. Validar el resultado
-
-Al finalizar, revisa:
-
-1. el Excel final en la raiz del proyecto
-2. la consola para confirmar si hubo `Parser errors`, `Structure issues` o `Requires review`
-3. las hojas `Resumen Ejecutivo`, `Plan de Atencion`, `Riesgos Prioritarios`, `Entidades Criticas` y `Detalle Operativo`
-
-</details>
-
-<details>
-<summary><strong>Ruta 2. Desarrollo</strong></summary>
-
-Pensada para quien necesita clonar el repositorio, modificar el codigo, ajustar parsers y mantener el proyecto.
-
-#### 1. Instalar prerrequisitos del sistema
-
-Verifica que la maquina tenga:
-
-- Python 3.10 o superior
-- Git
-- acceso a internet para instalar dependencias
-
-Comandos de validacion:
-
-```powershell
-python --version
-git --version
-```
-
-#### 2. Clonar el repositorio
-
-```powershell
-git clone <URL_DEL_REPOSITORIO>
-cd Identity_Report
-```
-
-#### 3. Crear entorno virtual
-
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-```
-
-Si PowerShell bloquea la activacion por politica de ejecucion, puedes usar temporalmente:
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.venv\Scripts\Activate.ps1
-```
-
-#### 4. Actualizar `pip` e instalar dependencias
-
-```powershell
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-#### 5. Verificar dependencias clave
-
-```powershell
-python -c "import falconpy; print(falconpy.__version__)"
-python -c "import openpyxl; print(openpyxl.__version__)"
-```
-
-Si ambos comandos imprimen una version, el ambiente ya esta listo para generar el reporte.
-
-#### 6. Preparar variables de entorno
-
-Define al menos:
-
-- `FALCON_CLIENT_ID`
-- `FALCON_CLIENT_SECRET`
-- `FALCON_TARGET_DOMAIN`
-
-Adicional recomendado para una entrega formal:
-
-- `FALCON_DELIVERABLE_NAME`
-
-Importante:
-
-- revisa `FALCON_DELIVERABLE_NAME` en cada cliente igual que `FALCON_TARGET_DOMAIN`
-- no reutilices el mismo nombre comercial entre clientes distintos
-- en desarrollo tambien conviene dejarlo correcto para validar desde temprano el nombre final del entregable
-
-Variables recomendadas para una corrida normal:
-
-```powershell
-$env:FALCON_CLIENT_ID="TU_CLIENT_ID"
-$env:FALCON_CLIENT_SECRET="TU_CLIENT_SECRET"
-$env:FALCON_TARGET_DOMAIN="cliente.local"
-$env:FALCON_DELIVERABLE_NAME="ACME"
-$env:FALCON_PAGE_SIZE="1000"
-$env:FALCON_OUTPUT_DIR="output"
-$env:FALCON_REPORT_NAME="identity_risk_report"
-$env:FALCON_SAMPLE_LIMIT_PER_RISK="3"
-$env:FALCON_BASE_URL="https://api.us-2.crowdstrike.com"
-$env:FALCON_ARTIFACT_MODE="final_only"
-```
-
-#### 7. Ejecutar el pipeline
-
-Con el entorno virtual activo:
-
-```powershell
-python main.py
-```
-
-O directamente, sin activar la `.venv`:
-
-```powershell
-.venv\Scripts\python.exe main.py
-```
-
-#### 8. Validar el resultado
-
-Al finalizar, revisa:
-
-1. el Excel final en la raiz del proyecto
-2. la consola para confirmar si hubo `Parser errors`, `Structure issues` o `Requires review`
-3. las hojas `Resumen Ejecutivo`, `Plan de Atencion`, `Riesgos Prioritarios`, `Entidades Criticas` y `Detalle Operativo`
-
-#### 9. Cerrar sesion o limpiar contexto antes de cambiar de cliente
-
-Si el equipo se usa como MSSP para varios tenants, limpia las variables de entorno o abre una consola nueva antes de correr un cliente distinto.
-
-</details>
-
-## Instalacion rapida
-
-Si la maquina ya tiene Python y Git, el flujo corto de desarrollo es:
-
-```powershell
-git clone <URL_DEL_REPOSITORIO>
-cd Identity_Report
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-python main.py
-```
-
-## Permisos de API en CrowdStrike
-
-Para este proyecto, el API client debe tener al menos estos permisos:
-
-- `Identity Protection Assessment = Read`
-- `Identity Protection Detections = Read`
-- `Identity Protection Enforcement = Read`
-- `Identity Protection Entities = Read`
-- `Identity Protection GraphQL = Write`
-- `Identity Protection Health = Read`
-- `Identity Protection on-premise enablement = Read`
-- `Identity Protection Policy Rules = Read`
-- `Identity Protection Timeline = Read`
-
-Importante:
-
-- el permiso clave para las consultas GraphQL es `Identity Protection GraphQL = Write`
-- aunque la consulta sea de lectura, CrowdStrike exige ese scope para el endpoint GraphQL de Identity Protection
-
-## Configuracion
-
-El proyecto usa variables de entorno.
-
-### Variables obligatorias
-
-- `FALCON_CLIENT_ID`
-- `FALCON_CLIENT_SECRET`
-- `FALCON_TARGET_DOMAIN`
-
-### Variables opcionales
-
-- `FALCON_DELIVERABLE_NAME`
-- `FALCON_PAGE_SIZE`
-- `FALCON_OUTPUT_DIR`
-- `FALCON_REPORT_NAME`
-- `FALCON_SAMPLE_LIMIT_PER_RISK`
-- `FALCON_BASE_URL`
-- `FALCON_ARTIFACT_MODE`
-
-### `.env.example`
-
-Se incluye un archivo `.env.example` como plantilla de referencia.
-
-Importante:
-
-- el proyecto no carga automaticamente archivos `.env`
-- debes exportar las variables en tu sesion PowerShell antes de ejecutar
-
-### Recomendacion para `FALCON_BASE_URL`
-
-Usa la URL API de tu region, no la URL de consola.
-
-Ejemplos validos:
-
-- `https://api.crowdstrike.com`
-- `https://api.us-2.crowdstrike.com`
-
-El proyecto convierte esa base automaticamente a la URL de consola correcta para los enlaces Falcon del Excel:
-
-- `https://api.crowdstrike.com` -> `https://falcon.crowdstrike.com`
-- `https://api.us-2.crowdstrike.com` -> `https://falcon.us-2.crowdstrike.com`
-
-### Recomendacion para `FALCON_DELIVERABLE_NAME`
-
-Esta variable controla el nombre oficial del Excel final orientado al cliente.
-
-Importante:
-
-- debes revisarla y cambiarla en cada cliente igual que `FALCON_TARGET_DOMAIN`
-- no conviene dejar valores genericos como `Cliente`, `Test`, `Demo` o similares
-- en entorno MSSP, este valor debe tratarse como parte de la identidad del entregable
-
-Recomendacion:
-
-- usar preferiblemente solo el nombre corto del cliente o del entregable
-- evitar palabras como `final`, `draft`, `test` o timestamps manuales
-- evitar repetir `Identity_Risk_Assessment` si ya quieres que el proyecto lo agregue por ti
-- pensar el valor como la etiqueta comercial del entregable
-
-Ejemplos validos:
-
-- `ACME`
-- `Cliente_XYZ`
-- `VADER_LOCAL`
-
-El proyecto construye por defecto nombres como:
-
-- `Identity_Risk_Assessment_ACME_2026-04-20.xlsx`
-
-Si prefieres pasar un nombre ya completo, el proyecto intentara respetarlo sin duplicar el prefijo. Por ejemplo:
-
-- `FALCON_DELIVERABLE_NAME=Cliente_Identity_Risk_Assessment`
-- salida: `Cliente_Identity_Risk_Assessment_2026-04-20.xlsx`
-
-Si no defines `FALCON_DELIVERABLE_NAME`, el proyecto usara `FALCON_TARGET_DOMAIN` como fallback.
-
-Mala practica:
-
-- dejar `FALCON_TARGET_DOMAIN` apuntando a un cliente y `FALCON_DELIVERABLE_NAME` con el nombre de otro
-- reutilizar el mismo `FALCON_DELIVERABLE_NAME` para todos los clientes
-- usar placeholders genericos del archivo `.env.example` en una corrida real
-
-### Ejemplo en PowerShell
-
-```powershell
-$env:FALCON_CLIENT_ID="TU_CLIENT_ID"
-$env:FALCON_CLIENT_SECRET="TU_CLIENT_SECRET"
-$env:FALCON_TARGET_DOMAIN="cliente.local"
-$env:FALCON_DELIVERABLE_NAME="ACME"
-$env:FALCON_PAGE_SIZE="1000"
-$env:FALCON_OUTPUT_DIR="output"
-$env:FALCON_REPORT_NAME="identity_risk_report"
-$env:FALCON_SAMPLE_LIMIT_PER_RISK="3"
-$env:FALCON_BASE_URL="https://api.us-2.crowdstrike.com"
-$env:FALCON_ARTIFACT_MODE="final_only"
-```
-
-## Uso
-
-Una vez configuradas las variables:
-
-```powershell
-python main.py
-```
-
-## Flujo funcional
-
-El pipeline sigue este orden:
-
-1. `Discovery`: detecta todos los `riskFactors.type` del dominio.
-2. `Inventory`: cuenta frecuencia y arma inventario de riesgos.
-3. `Parser selection`: decide si usar parser especifico, especializado o unknown.
-4. `Detail extraction`: obtiene el detalle por GraphQL con paginacion automatica.
-5. `Parsing`: transforma la data raw en filas tecnicas legibles.
-6. `Correlation`: agrega cruces por entidad para ver multiples riesgos relacionados.
-7. `Audit`: registra riesgos no soportados, errores y problemas estructurales.
-8. `Reporting`: exporta JSON, CSV y Excel.
+---
 
 ## Arquitectura interna
 
-El proyecto esta organizado por responsabilidad para reducir acoplamiento entre consulta, parseo, auditoria y salida final.
+El proyecto está organizado por responsabilidad para reducir acoplamiento entre consulta, parseo, auditoría y salida final.
 
-- `config.py`
-  Carga y valida configuracion desde variables de entorno.
-- `queries.py`
-  Define las consultas GraphQL de discovery y detalle.
-- `discovery.py`
-  Ejecuta GraphQL con FalconPy y pagina automaticamente hasta agotar resultados.
-- `risk_catalog.py`
-  Centraliza metadata base de riesgos: titulo, dominio de atencion, resumen tecnico, impacto y remediacion.
-- `parser_registry.py`
-  Decide que parser usar para cada `risk_type`.
-- `parsers.py`
-  Transforma payloads de CrowdStrike en filas tecnicas y rutas de ataque.
-- `audit.py`
-  Registra tipos desconocidos, errores de parser, issues de estructura y muestras raw.
-- `analytics.py`
-  Construye correlacion por entidad y agregados para la portada ejecutiva.
-- `actionability.py`
-  Calcula prioridad de revision, nivel de accionabilidad y siguiente paso sugerido.
-- `reporting.py`
-  Guarda JSON/CSV, genera el workbook de Excel y aplica retencion de artefactos.
-- `utils.py`
-  Reune helpers de IO, enlaces Falcon y salida visual en consola.
+| Archivo              | Responsabilidad                                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `main.py`            | Orquesta la ejecución general del pipeline.                                                                               |
+| `config.py`          | Carga y valida configuración desde variables de entorno.                                                                  |
+| `queries.py`         | Define consultas GraphQL de discovery y detalle.                                                                          |
+| `discovery.py`       | Ejecuta consultas GraphQL con FalconPy y pagina resultados.                                                               |
+| `risk_catalog.py`    | Centraliza metadata de riesgos: título, dominio, impacto y remediación.                                                   |
+| `parser_registry.py` | Decide qué parser usar para cada `risk_type`.                                                                             |
+| `parsers.py`         | Transforma payloads de CrowdStrike en filas técnicas y, cuando el payload lo permite, genera filas de rutas de ataque.     |
+| `audit.py`           | Registra tipos desconocidos, errores de parser, issues de estructura y muestras raw durante el proceso de parsing.         |
+| `analytics.py`       | Construye correlaciones por entidad y agregados ejecutivos usados durante la generación del reporte.                       |
+| `actionability.py`   | Calcula prioridad, accionabilidad y siguiente paso sugerido durante la preparación de salidas.                             |
+| `reporting.py`       | Genera CSV, JSON, Excel final y aplica retención de artefactos.                                                           |
+| `utils.py`           | Contiene helpers de IO, enlaces Falcon y salida de consola.                                                               |
 
-Orden de ejecucion resumido:
+Orden lógico de ejecución:
 
-1. `main.py` carga configuracion
-2. `discovery.py` hace discovery e inventario
-3. `discovery.py` hace detail extraction
-4. `parsers.py` interpreta riesgos
-5. `analytics.py` y `actionability.py` enriquecen filas
-6. `audit.py` arma evidencias de soporte
-7. `reporting.py` produce CSV/JSON/Excel final
+```text
+main.py
+  -> config.py
+  -> discovery.py
+  -> parsers.py
+       -> audit.py
+  -> reporting.py
+       -> analytics.py
+       -> actionability.py
+       -> generación de CSV/JSON/Excel
+       -> retención o limpieza de artefactos
+```
 
-## Organizacion de salidas
+Nota técnica:
+
+`audit.py` se utiliza durante el parsing para registrar errores, estructuras inesperadas y riesgos no soportados. `analytics.py` y `actionability.py` se ejecutan durante la generación de salidas, no como una fase independiente previa a `reporting.py`.
+
+## Organización de salidas
 
 El proyecto separa las salidas en dos niveles:
 
@@ -541,75 +389,101 @@ El proyecto separa las salidas en dos niveles:
 Se guardan dentro de:
 
 ```text
+<FALCON_OUTPUT_DIR>/runs/<report_name>_<timestamp>/
+```
+
+Por defecto, si `FALCON_OUTPUT_DIR` no se modifica, la ruta será:
+
+```text
 output/runs/<report_name>_<timestamp>/
 ```
 
-Aqui quedan:
+Dependiendo del modo de artefactos, pueden generarse archivos como:
 
-- `*_discovery_raw.json`
-- `*_detail_raw.json`
-- `*_risk_inventory.csv`
-- `*_parser_inventory.csv`
-- `*_parsed_risks.csv`
-- `*_attack_paths.csv`
-- `*_unknown_risk_types.csv`
-- `*_parser_errors.csv`
-- `*_structure_issues.csv`
-- `*_raw_samples_overview.csv`
-- `*_raw_samples.json`
+```text
+*_discovery_raw.json
+*_detail_raw.json
+*_risk_inventory.csv
+*_parser_inventory.csv
+*_parsed_risks.csv
+*_attack_paths.csv
+*_unknown_risk_types.csv
+*_parser_errors.csv
+*_structure_issues.csv
+*_raw_samples_overview.csv
+*_raw_samples.json
+```
 
-Estos archivos sirven como trazabilidad tecnica, auditoria y soporte para evolucionar el parser.
+Estos archivos sirven para trazabilidad técnica, auditoría, debugging y evolución de parsers.
 
 ### 2. Reporte final
 
-El Excel final se genera fuera de `output/`, en la raiz del proyecto, con un nombre profesional:
+El Excel final se genera en el directorio padre de `FALCON_OUTPUT_DIR`.
+
+Con la configuración por defecto:
+
+```powershell
+$env:FALCON_OUTPUT_DIR="output"
+```
+
+el Excel se genera en la raíz del proyecto, ya que el directorio padre de `output/` corresponde a la carpeta base del repositorio.
+
+Formato esperado:
 
 ```text
 Identity_Risk_Assessment_<deliverable_name>_<YYYY-MM-DD>.xlsx
 ```
 
-Esto permite:
+Si `FALCON_OUTPUT_DIR` se cambia a otra ruta, el Excel final se generará en el padre de esa ruta.
 
-- identificar rapidamente el reporte entregable con un nombre apto para cliente;
-- conservar multiples corridas sin sobreescritura mediante versionado automatico;
-- separar el entregable del material intermedio de analisis.
+Ejemplo:
 
-Si ya existe un archivo con el mismo nombre para la misma fecha, el proyecto genera:
-
-```text
-Identity_Risk_Assessment_<deliverable_name>_<YYYY-MM-DD>_v2.xlsx
-Identity_Risk_Assessment_<deliverable_name>_<YYYY-MM-DD>_v3.xlsx
+```powershell
+$env:FALCON_OUTPUT_DIR="C:\Temp\identity_output"
 ```
 
-Esto evita sobreescritura sin obligarte a exponer timestamps tecnicos en el nombre del entregable.
+En ese caso, el Excel final quedaría en:
 
-<details>
-<summary><strong>Retencion de artefactos sensibles</strong></summary>
+```text
+C:\Temp\
+```
 
-## Retencion de artefactos sensibles
+Esto permite separar artefactos intermedios del entregable final, pero debe tomarse en cuenta si se personaliza `FALCON_OUTPUT_DIR`.
 
-El comportamiento se controla con `FALCON_ARTIFACT_MODE`.
+## Modos de retención de artefactos
+
+El comportamiento se controla con:
+
+```text
+FALCON_ARTIFACT_MODE
+```
 
 Valores soportados:
 
-- `final_only`
-- `standard`
-- `debug`
+```text
+final_only
+standard
+debug
+```
 
 ### `final_only`
 
-Modo recomendado para operacion MSSP.
+Modo recomendado para operación MSSP.
 
-Comportamiento:
+Comportamiento esperado:
 
-- genera el Excel final en la raiz del proyecto
-- elimina la carpeta de artefactos intermedios de la corrida
-- no conserva JSON ni CSV tecnicos al finalizar
+* Genera el Excel final.
+* Intenta eliminar la carpeta de artefactos intermedios de la corrida.
+* No conserva JSON ni CSV técnicos cuando la limpieza se completa correctamente.
 
 Uso recomendado:
 
-- ejecucion normal para entrega de reporte a cliente
-- ambientes donde no se desea persistir evidencia sensible del tenant
+* Ejecución normal para entrega de reporte a cliente.
+* Ambientes donde no se desea persistir evidencia sensible del tenant.
+
+Nota técnica:
+
+La eliminación de artefactos se realiza como una operación de limpieza posterior a la generación del reporte. Si Windows, OneDrive, un antivirus, un proceso externo o permisos del sistema bloquean archivos o carpetas, la carpeta de artefactos puede conservarse y el proyecto mostrará una nota en consola. En ese caso, se debe revisar y eliminar manualmente la carpeta de la corrida si contiene información sensible.
 
 ### `standard`
 
@@ -617,20 +491,22 @@ Modo intermedio.
 
 Comportamiento:
 
-- conserva la carpeta `output/runs/<corrida>/`
-- elimina artefactos raw sensibles
-- conserva CSV tecnicos y archivos utiles para revision operativa
+* Conserva la carpeta `output/runs/<corrida>/` o la ruta equivalente definida por `FALCON_OUTPUT_DIR`.
+* Elimina artefactos raw sensibles.
+* Conserva CSV técnicos útiles para revisión operativa.
 
 Archivos purgados en este modo:
 
-- `*_discovery_raw.json`
-- `*_detail_raw.json`
-- `*_raw_samples.json`
+```text
+*_discovery_raw.json
+*_detail_raw.json
+*_raw_samples.json
+```
 
 Uso recomendado:
 
-- revision tecnica interna
-- validacion de resultados sin retener payload raw completo
+* Revisión técnica interna.
+* Validación de resultados sin retener payload raw completo.
 
 ### `debug`
 
@@ -638,251 +514,161 @@ Modo de desarrollo.
 
 Comportamiento:
 
-- conserva todos los artefactos de la corrida
-- deja disponible el material necesario para depurar parsers o validar cambios estructurales
+* Conserva todos los artefactos de la corrida.
+* Mantiene material útil para depurar parsers o validar cambios estructurales.
 
 Uso recomendado:
 
-- evolucion del proyecto
-- investigacion de errores
-- incorporacion de nuevos parsers
+* Investigación de errores.
+* Incorporación de nuevos parsers.
+* Validación de cambios en el esquema de respuesta.
 
-### Recomendacion operativa
+### Recomendación operativa
 
-En un entorno MSSP, la recomendacion por defecto es:
+Para operación normal en MSSP:
 
 ```powershell
 $env:FALCON_ARTIFACT_MODE="final_only"
 ```
 
-Usa `debug` solo cuando realmente necesites investigar un fallo o construir soporte para riesgos nuevos.
-
-</details>
-
-## Nota sobre `output/`
-
-La carpeta `output/` no necesita existir en el repositorio.
-
-El proyecto la crea automaticamente en tiempo de ejecucion usando `ensure_output_dir()` en `utils.py`. Si alguien clona el repositorio sin esa carpeta, el pipeline sigue funcionando normalmente y la genera al primer `python main.py`.
+Usa `debug` solo cuando realmente necesites investigar un fallo o construir soporte para nuevos tipos de riesgo.
 
 ## Hojas del Excel
 
-El workbook final esta optimizado para operacion MSSP y revision con cliente. Las hojas visibles se enfocan en priorizacion, accion y lectura clara, mientras que la trazabilidad interna queda en CSV/JSON cuando el modo de artefactos lo permite.
+El workbook final está optimizado para operación MSSP y revisión técnica con cliente.
 
-Dependiendo de la corrida y de los datos encontrados, el workbook puede incluir:
+Dependiendo de la corrida y de los datos encontrados, puede incluir:
 
-- `Resumen Ejecutivo`
-- `Plan de Atencion`
-- `Riesgos Prioritarios`
-- `Entidades Criticas`
-- `Rutas de Ataque` solo si hay datos de attack path
-- `Resumen por Riesgo`
-- `Detalle Operativo`
+| Hoja                   | Descripción                                                                              |
+| ---------------------- | ---------------------------------------------------------------------------------------- |
+| `Resumen Ejecutivo`    | KPIs, focos principales, acciones sugeridas y lectura rápida.                            |
+| `Plan de Atencion`     | Vista principal para analistas con prioridad, accionabilidad, evidencia y enlace Falcon. |
+| `Riesgos Prioritarios` | Riesgos agregados por volumen, dominio de atención, criticidad y concentración.          |
+| `Entidades Criticas`   | Entidades con múltiples riesgos correlacionados.                                         |
+| `Rutas de Ataque`      | Rutas observadas cuando CrowdStrike devuelve datos suficientes.                          |
+| `Resumen por Riesgo`   | Inventario agregado por `risk_type`, título, dominio, cantidad y porcentaje.             |
+| `Detalle Operativo`    | Detalle técnico para revisión y remediación.                                             |
 
-Descripcion resumida:
+Notas importantes:
 
-- `Resumen Ejecutivo`: KPIs, focos principales, acciones sugeridas y lectura rapida para decision.
-- `Plan de Atencion`: vista principal para analista/MSSP con entidad, prioridad, accionabilidad, estado sugerido, accion recomendada, impacto, evidencia y enlace Falcon.
-- `Riesgos Prioritarios`: riesgos agregados por volumen, dominio de atencion, porcentaje, criticidad y concentracion observada.
-- `Entidades Criticas`: entidades con correlacion de multiples riesgos, severidad mas alta y enlace Falcon.
-- `Rutas de Ataque`: rutas observadas cuando CrowdStrike devuelve datos suficientes para construirlas.
-- `Resumen por Riesgo`: inventario agregado por `risk_type`, titulo, dominio de atencion, cantidad y porcentaje.
-- `Detalle Operativo`: detalle tecnico necesario para revisar y remediar sin exponer columnas internas del parser.
+* El Excel final no muestra hojas de auditoría interna ni columnas raw de parser.
+* Las hojas de auditoría se conservan como CSV/JSON solo cuando `FALCON_ARTIFACT_MODE` lo permite.
+* La hoja oculta `_chart_data` puede existir como soporte interno para gráficos y no debe usarse como vista de análisis.
 
-Importante:
+---
 
-- El Excel final ya no muestra hojas de auditoria interna ni hojas duplicadas por dominio de atencion.
-- `Auditoria - Sin Parser`, `Auditoria - Errores`, muestras raw y campos de parser se conservan solo como artefactos tecnicos cuando `FALCON_ARTIFACT_MODE` permite conservarlos.
-- La hoja oculta `_chart_data` puede existir como soporte interno para graficos y no debe compartirse como vista de analisis.
+## Dominios de atención
 
-## Dominios de atencion
+Los dominios de atención salen del campo interno `family` definido en `risk_catalog.py`.
 
-Los dominios de atencion del reporte salen del campo interno `family` definido en `risk_catalog.py` para cada `risk_type` soportado. El nombre interno se conserva por compatibilidad con el codigo y los CSV, pero en el Excel y la documentacion se presenta como `Dominio de atencion`.
+No corresponden a una taxonomía oficial cerrada de CrowdStrike, MITRE, NIST o Microsoft. Son una agrupación operativa local para ayudar al analista a convertir hallazgos de Identity Protection en frentes claros de investigación, validación y remediación.
 
-No es una taxonomia oficial cerrada de CrowdStrike, MITRE, NIST o Microsoft. Es una agrupacion operativa local para ayudar a un analista MSSP a convertir hallazgos de Identity Protection en frentes claros de investigacion, validacion y remediacion.
+La fuente primaria del hallazgo sigue siendo CrowdStrike Identity Protection:
 
-La fuente primaria del hallazgo sigue siendo CrowdStrike Identity Protection: el `risk_type`, la entidad, la severidad de entidad y los datos del payload. El dominio de atencion es una capa interpretativa local que agrega contexto, priorizacion y lenguaje de remediacion.
+* `risk_type`
+* entidad afectada
+* severidad de entidad
+* payload devuelto por GraphQL
+* contexto visible en Falcon
 
-### Por que existe esta clasificacion
-
-La clasificacion por dominio de atencion ayuda a:
-
-- convertir muchos `risk_type` tecnicos en frentes de trabajo entendibles;
-- explicar a cliente si el problema es higiene de identidad, ciclo de vida, privilegios, endurecimiento, movimiento lateral o actividad adversaria;
-- priorizar acciones sin depender solo del volumen;
-- agrupar remediaciones que normalmente pertenecen al mismo equipo responsable, por ejemplo IAM, Active Directory, infraestructura, SOC o endpoint.
+El dominio de atención es una capa interpretativa local que agrega contexto y priorización.
 
 ### Dominios usados por el proyecto
 
-- `Password Hygiene`: debilidades de contrasena, rotacion, reutilizacion y politicas.
-- `Identity Hygiene`: cuentas compartidas o patrones que reducen trazabilidad.
-- `Account Lifecycle`: cuentas inactivas, obsoletas o con ciclo de vida deficiente.
-- `Access Change`: cambios o accesos nuevos que requieren validacion.
-- `Behavioral Anomaly`: actividad fuera de linea base o comportamiento esperado.
-- `Identity Correlation`: riesgos derivados de relacion entre identidades.
-- `Endpoint Exposure`: exposicion indirecta por endpoint riesgoso, compartido o stale.
-- `Endpoint Hardening`: configuraciones debiles en endpoints o protocolos.
-- `Endpoint Posture`: postura vulnerable o desactualizada del activo asociado.
-- `Directory Hardening`: configuraciones de directorio que debilitan integridad o autenticacion.
-- `Credential Abuse`: escenarios de abuso o reutilizacion de credenciales.
-- `Kerberos Exposure`: superficie relacionada con Kerberos, SPN o KRBTGT.
-- `Certificate Exposure`: exposicion por configuracion de AD CS/certificados.
-- `Privilege Exposure`: privilegios, cuentas o equipos con impacto elevado.
-- `Lateral Movement`: relaciones o rutas que facilitan movimiento lateral.
-- `Threat Activity`: senales de actividad adversaria o investigacion activa.
-- `Unclassified`: fallback para riesgos nuevos o no catalogados todavia.
+| Dominio                | Descripción                                                             |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `Password Hygiene`     | Debilidades de contraseña, rotación, reutilización o políticas.         |
+| `Identity Hygiene`     | Cuentas compartidas o patrones que reducen trazabilidad.                |
+| `Account Lifecycle`    | Cuentas inactivas, obsoletas o con ciclo de vida deficiente.            |
+| `Access Change`        | Cambios o accesos nuevos que requieren validación.                      |
+| `Behavioral Anomaly`   | Actividad fuera de línea base o comportamiento esperado.                |
+| `Identity Correlation` | Riesgos derivados de relaciones entre identidades.                      |
+| `Endpoint Exposure`    | Exposición indirecta por endpoint riesgoso, compartido o stale.         |
+| `Endpoint Hardening`   | Configuraciones débiles en endpoints o protocolos.                      |
+| `Endpoint Posture`     | Postura vulnerable o desactualizada del activo asociado.                |
+| `Directory Hardening`  | Configuraciones de directorio que debilitan integridad o autenticación. |
+| `Credential Abuse`     | Escenarios de abuso o reutilización de credenciales.                    |
+| `Kerberos Exposure`    | Superficie relacionada con Kerberos, SPN o KRBTGT.                      |
+| `Certificate Exposure` | Exposición por configuración de AD CS o certificados.                   |
+| `Privilege Exposure`   | Privilegios, cuentas o equipos con impacto elevado.                     |
+| `Lateral Movement`     | Relaciones o rutas que facilitan movimiento lateral.                    |
+| `Threat Activity`      | Señales de actividad adversaria o investigación activa.                 |
+| `Unclassified`         | Fallback para riesgos nuevos o no catalogados.                          |
 
-### Como debe interpretarlos un analista
+### Cómo debe interpretarlos un analista
 
-Usa el dominio de atencion como orientacion, no como veredicto. La secuencia recomendada es:
+Usa el dominio de atención como orientación, no como veredicto.
 
-1. confirmar el `risk_type` y la entidad en Falcon;
-2. usar el dominio de atencion para entender el frente tecnico;
-3. revisar la accion recomendada y la evidencia disponible;
-4. validar owner, criticidad, uso legitimo y ventana de cambio;
-5. ajustar la prioridad si el contexto del cliente cambia el impacto.
+Secuencia recomendada:
 
-Si aparece `Unclassified`, significa que CrowdStrike devolvio un tipo de riesgo que el proyecto todavia no tiene catalogado. En ese caso se debe revisar el payload, confirmar significado operativo y agregar metadata al `risk_catalog.py` antes de usarlo como criterio recurrente.
+1. Confirmar el `risk_type` y la entidad en Falcon.
+2. Usar el dominio de atención para entender el frente técnico.
+3. Revisar la acción recomendada y la evidencia disponible.
+4. Validar owner, criticidad, uso legítimo y ventana de cambio.
+5. Ajustar prioridad si el contexto del cliente cambia el impacto.
 
-## Nota sobre severidad
+Si aparece `Unclassified`, significa que CrowdStrike devolvió un tipo de riesgo que el proyecto todavía no tiene catalogado. En ese caso se debe revisar el payload, confirmar el significado operativo y agregar metadata al `risk_catalog.py` antes de usarlo como criterio recurrente.
 
-La columna de severidad del workbook representa la `riskScoreSeverity` de la entidad reportada por CrowdStrike, no necesariamente una severidad independiente por cada `riskFactor`.
+---
 
-Para hacerla mas entendible en el Excel:
+## Severidad
 
-- `NORMAL` se presenta como `LOW`
-- `MEDIUM`, `HIGH` y `CRITICAL` se mantienen
+La severidad mostrada en el workbook representa la `riskScoreSeverity` de la entidad reportada por CrowdStrike. No necesariamente corresponde a una severidad independiente por cada `riskFactor`.
 
-En las hojas de correlacion se usa la misma logica bajo el nombre `Severidad mas alta de entidad`.
+Para facilitar la lectura en Excel:
 
-## Revision recomendada despues de ejecutar
+| Valor original | Valor mostrado |
+| -------------- | -------------- |
+| `NORMAL`       | `LOW`          |
+| `MEDIUM`       | `MEDIUM`       |
+| `HIGH`         | `HIGH`         |
+| `CRITICAL`     | `CRITICAL`     |
 
-Orden sugerido para un analista:
+En hojas de correlación se usa la misma lógica bajo el nombre `Severidad mas alta de entidad`.
 
-1. abrir el archivo `Identity_Risk_Assessment_<deliverable_name>_<YYYY-MM-DD>.xlsx`
-2. revisar `Resumen Ejecutivo`
-3. trabajar primero `Plan de Atencion`, empezando por `P1` y `Atencion inmediata`
-4. revisar `Riesgos Prioritarios` para entender concentracion, volumen y dominio de atencion
-5. revisar `Entidades Criticas` para identificar cuentas o activos con riesgo correlacionado
-6. revisar `Rutas de Ataque` si la hoja existe
-7. usar `Detalle Operativo` para validar evidencia, impacto y accion recomendada antes de remediar
+---
 
-## Guia L1 de atencion
+## Validación posterior a la ejecución
 
-Esta guia esta pensada para analistas L1 de MSSP. El objetivo del L1 no es cerrar la remediacion tecnica por cuenta propia, sino ordenar hallazgos, validar lo basico, documentar evidencia y escalar correctamente.
+Después de correr el pipeline, valida lo siguiente:
 
-### Antes de compartir con cliente
+1. Que el Excel final se haya generado en la ubicación esperada según `FALCON_OUTPUT_DIR`.
+2. Que el nombre del archivo corresponda al cliente correcto.
+3. Que `FALCON_TARGET_DOMAIN` apunte al dominio esperado.
+4. Que `FALCON_DELIVERABLE_NAME` corresponda al cliente o entregable correcto.
+5. Que la consola no muestre errores críticos de parser o estructura.
+6. Que no existan tipos de riesgo `Unclassified` sin revisión.
+7. Que los enlaces Falcon del Excel apunten a la región correcta.
+8. Que las hojas principales tengan datos coherentes antes de compartir el reporte.
 
-No compartas el reporte como entregable final si ocurre cualquiera de estos casos:
+Orden sugerido de revisión:
 
-- el Excel no se genero o el nombre del archivo no corresponde al cliente;
-- `FALCON_TARGET_DOMAIN` o `FALCON_DELIVERABLE_NAME` no corresponden al cliente actual;
-- la consola muestra `Parser errors` o `Structure issues` mayores que cero;
-- aparece un dominio `Unclassified` o un riesgo que el equipo no ha validado;
-- hay dudas sobre si la corrida apunta a la region correcta de CrowdStrike.
+1. `Resumen Ejecutivo`
+2. `Plan de Atencion`
+3. `Riesgos Prioritarios`
+4. `Entidades Criticas`
+5. `Rutas de Ataque`, si existe
+6. `Detalle Operativo`
 
-Si aparece `Requires review` mayor que cero, no cierres esos casos. Puedes usar el reporte para revision interna, pero las filas afectadas deben ser validadas por L2 antes de presentarlas como conclusion final.
+No se recomienda entregar el reporte a cliente si existen errores de parser, estructuras inesperadas o riesgos no clasificados sin revisión técnica previa.
 
-### Flujo de trabajo recomendado
+## Uso en entorno MSSP
 
-1. Confirmar archivo y cliente:
-   abre el Excel generado y valida que el dominio de `Resumen Ejecutivo` sea el cliente correcto.
-2. Revisar salud de la corrida:
-   en consola valida `Parser errors`, `Structure issues`, `Unknown risk types` y `Requires review`.
-3. Priorizar:
-   en `Plan de Atencion`, filtra primero `Prioridad de revision = P1` y `Estado sugerido = Atencion inmediata`.
-4. Validar en Falcon:
-   abre el `Enlace Falcon` de cada fila prioritaria y confirma entidad, tipo de riesgo y contexto visible.
-5. Preparar ticket:
-   usa `Riesgo`, `Impacto probable`, `Evidencia disponible` y `Accion recomendada` como base del ticket.
-6. Revisar concentracion:
-   usa `Riesgos Prioritarios` para entender si el problema es masivo o focalizado.
-7. Revisar entidades:
-   usa `Entidades Criticas` para identificar cuentas o activos que acumulan varios tipos de riesgo.
-8. Escalar:
-   escala a L2 si el hallazgo es P1, si requiere investigacion guiada, si toca privilegios, Kerberos, AD CS, movimiento lateral o si no entiendes la evidencia.
+Si el proyecto se usa para varios clientes, es importante evitar reutilizar por accidente la configuración del cliente anterior.
 
-### Como leer prioridad y accionabilidad
+Buenas prácticas:
 
-- `P1`: atender primero. Crear ticket y escalar a L2 si requiere investigacion, privilegios, movimiento lateral o cambios sensibles.
-- `P2`: validar contexto en Falcon y preparar plan de remediacion. Escalar si el owner, impacto o evidencia no son claros.
-- `P3`: tratar como mejora operativa o higiene. Puede agruparse con otros hallazgos del mismo dominio.
-- `Accion directa`: el hallazgo normalmente permite una remediacion concreta, pero el cliente debe confirmar owner, ventana y posible impacto.
-- `Validacion en Falcon`: no remediar sin confirmar entidad, contraparte, fecha, origen o contexto adicional.
-- `Investigacion guiada`: no cerrar en L1; requiere investigacion o confirmacion de L2/SOC/Identity.
+* Usar una sesión nueva de PowerShell por cliente.
+* Validar siempre `FALCON_TARGET_DOMAIN` antes de ejecutar.
+* Validar siempre `FALCON_DELIVERABLE_NAME` antes de ejecutar.
+* Validar `FALCON_BASE_URL` según la región correcta.
+* No reutilizar archivos de `output/runs/` como insumo para otro cliente.
+* No compartir ni versionar resultados reales del tenant.
+* No guardar credenciales reales en `.env.example`, README, issues o commits.
 
-### Cuando pedir apoyo
+### Limpiar variables de entorno
 
-Pide apoyo a L2 o al responsable interno si:
-
-- el enlace Falcon no abre o apunta a una region inesperada;
-- la entidad es privilegiada, administrativa, de servicio o critica;
-- hay `Stealthy privileges`, `KRBTGT`, `AD CS`, `Pass-the-hash`, `Lateral Movement` o `Attack Path`;
-- la accion recomendada implica deshabilitar cuentas, cambiar politicas, rotar credenciales sensibles o tocar controladores de dominio;
-- el cliente pregunta si el hallazgo es incidente confirmado;
-- el reporte muestra datos que no coinciden con el tenant o el alcance esperado.
-
-### Plantilla corta para ticket MSSP
-
-```text
-Titulo:
-[Identity Protection] <Riesgo> en <Entidad> - <Prioridad>
-
-Resumen:
-Se detecto <Riesgo> sobre <Entidad>. Dominio de atencion: <Dominio de atencion>.
-
-Impacto probable:
-<Impacto probable del Excel>
-
-Evidencia:
-<Evidencia disponible del Excel>
-Enlace Falcon: <Enlace Falcon>
-
-Accion recomendada:
-<Accion recomendada del Excel>
-
-Validacion L1:
-- Cliente/dominio confirmado: Si/No
-- Entidad revisada en Falcon: Si/No
-- Requiere L2: Si/No
-- Motivo de escalamiento: <motivo si aplica>
-```
-
-### Plantilla corta para comentario al cliente
-
-```text
-Durante la revision de Identity Protection se identificaron hallazgos priorizados por impacto operativo y concentracion.
-Se recomienda iniciar por los elementos P1 del Plan de Atencion, validar owner y uso legitimo de las entidades afectadas, y coordinar ventanas de remediacion para las acciones que impliquen cambios de cuenta, privilegios o configuracion.
-Los hallazgos marcados como investigacion o validacion requieren confirmacion adicional en Falcon antes de considerarse cerrados.
-```
-
-<details>
-<summary><strong>Cambio de cliente en entorno MSSP</strong></summary>
-
-## Cambio de cliente en entorno MSSP
-
-Si este proyecto se usa para varios clientes, es importante no reutilizar por accidente configuracion del cliente anterior.
-
-Buenas practicas:
-
-- usar una sesion PowerShell nueva por cliente;
-- validar siempre `FALCON_TARGET_DOMAIN` antes de ejecutar;
-- validar siempre `FALCON_DELIVERABLE_NAME` antes de ejecutar;
-- revisar `FALCON_BASE_URL` segun la region correcta;
-- no reutilizar archivos de `output/runs/` como insumo de otro cliente;
-- no compartir ni versionar resultados reales del tenant.
-
-Si necesitas conservar artefactos para debugging, cambia temporalmente a:
-
-```powershell
-$env:FALCON_ARTIFACT_MODE="debug"
-```
-
-y vuelve a `final_only` antes de una corrida operativa normal.
-
-### Limpiar variables de entorno antes de cambiar de cliente
-
-En PowerShell puedes limpiar la sesion actual asi:
+En PowerShell puedes limpiar la sesión actual con:
 
 ```powershell
 Remove-Item Env:FALCON_CLIENT_ID -ErrorAction SilentlyContinue
@@ -894,298 +680,233 @@ Remove-Item Env:FALCON_OUTPUT_DIR -ErrorAction SilentlyContinue
 Remove-Item Env:FALCON_REPORT_NAME -ErrorAction SilentlyContinue
 Remove-Item Env:FALCON_SAMPLE_LIMIT_PER_RISK -ErrorAction SilentlyContinue
 Remove-Item Env:FALCON_BASE_URL -ErrorAction SilentlyContinue
+Remove-Item Env:FALCON_ARTIFACT_MODE -ErrorAction SilentlyContinue
 ```
-
-Luego cargas las variables del siguiente cliente y vuelves a ejecutar.
 
 Alternativa recomendada:
 
-- cerrar la consola actual
-- abrir una nueva sesion PowerShell
-- volver a exportar solo las variables del cliente que vas a procesar
+1. Cerrar la consola actual.
+2. Abrir una nueva sesión de PowerShell.
+3. Exportar solo las variables del cliente que se va a procesar.
+4. Ejecutar nuevamente el pipeline.
 
-</details>
-
-<details>
-<summary><strong>Troubleshooting</strong></summary>
+---
 
 ## Troubleshooting
 
-### Error por variables faltantes
+### PowerShell bloquea la activación del entorno virtual
 
-Configura las variables obligatorias antes de ejecutar:
+Error típico:
 
-```powershell
-$env:FALCON_CLIENT_ID="..."
-$env:FALCON_CLIENT_SECRET="..."
-$env:FALCON_TARGET_DOMAIN="..."
+```text
+running scripts is disabled on this system
 ```
 
-### Error: falta `falconpy`
-
-```powershell
-pip install -r requirements.txt
-```
-
-### Error: no se genera el Excel
-
-Verifica que `openpyxl` este instalado:
-
-```powershell
-pip install openpyxl
-```
-
-### Error: la activacion de `.venv` esta bloqueada
+Solución temporal para la sesión actual:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .venv\Scripts\Activate.ps1
 ```
 
-### Error: `python` no apunta al entorno virtual correcto
+### `python` no responde o no se reconoce
 
-Ejecuta el script con el interprete de la `.venv`:
+Valida la instalación:
 
 ```powershell
-.venv\Scripts\python.exe main.py
+python --version
 ```
 
-</details>
+Si no responde, instala Python desde el sitio oficial y marca la opción `Add Python to PATH`.
 
-<details>
-<summary><strong>Referencias tecnicas para analistas</strong></summary>
+### Falta `falconpy`
 
-## Referencias tecnicas para analistas
+Instala dependencias:
 
-Esta seccion no forma parte del pipeline ni del reporte final. Es material de apoyo para que un analista entienda por que ciertos dominios de atencion o hallazgos son relevantes en identidad, autenticacion, privilegios y movimiento lateral.
+```powershell
+pip install -r requirements.txt
+```
 
-Los dominios de atencion usados por el proyecto son una agrupacion operativa local. No deben presentarse como un estandar oficial. Lo oficial es el hallazgo que devuelve CrowdStrike y, para fundamentar la atencion, las fuentes tecnicas de referencia como Microsoft Learn, MITRE ATT&CK y NIST. Los dominios ayudan a ordenar el trabajo, conectar hallazgos con responsables tecnicos y explicar impacto de forma clara.
+Valida la instalación:
 
-Los enlaces de esta seccion fueron revisados durante el mantenimiento del proyecto y se priorizaron fuentes con buen valor operativo para analistas:
+```powershell
+python -c "import falconpy; print(falconpy.__version__)"
+```
 
-- Microsoft Learn: para entender tecnologia, controles y postura recomendada
-- MITRE ATT&CK: para mapear hallazgos a tacticas y tecnicas de adversario
-- NIST: para fundamentos de identidad y autenticacion
-- SpecterOps: para AD CS, Kerberos ofensivo y abuso de identidad en Active Directory
+### Falta `openpyxl`
 
-### Ruta recomendada para analistas menos experimentados
+Instala dependencias:
 
-Si no sabes por donde empezar, usa este orden:
+```powershell
+pip install -r requirements.txt
+```
 
-1. leer `Windows Authentication Overview` para entender el terreno base
-2. ubicar el dominio de atencion del hallazgo en la lista de abajo
-3. leer primero la referencia de Microsoft Learn o NIST
-4. luego abrir ATT&CK si el hallazgo sugiere abuso o actividad adversaria
-5. usar SpecterOps cuando el hallazgo toque AD CS, Kerberos o escalamiento en Active Directory
+O instala el paquete directamente:
 
-### Mapa rapido de ayuda por dominio
+```powershell
+pip install openpyxl
+```
 
-Usa esta tabla cuando no sepas por donde empezar o que referencia consultar primero.
+### No se genera el Excel
 
-| Dominio de atencion | Que significa para L1 | Primera referencia | Escalar si ves |
-| --- | --- | --- | --- |
-| `Password Hygiene` | Problemas de contrasena, rotacion, politica o reutilizacion. | Microsoft Entra Password Protection | Cuentas privilegiadas, cuentas de servicio o cambios masivos de politica. |
-| `Identity Hygiene` | Identidades compartidas o baja trazabilidad. | Windows Authentication Overview | Cuentas usadas por varias personas, servicios criticos o falta de owner. |
-| `Account Lifecycle` | Cuentas inactivas, obsoletas o con uso inesperado. | Microsoft Entra ID Governance | Cuenta administrativa, servicio productivo o duda sobre deshabilitar. |
-| `Access Change` | Acceso nuevo o cambio que requiere confirmacion. | Identity Governance / Lifecycle Workflows | Acceso a servidores criticos o actividad fuera de horario. |
-| `Behavioral Anomaly` | Comportamiento fuera de linea base. | MITRE ATT&CK Enterprise tactics | Actividad repetida, origen sospechoso o posible incidente. |
-| `Endpoint Exposure` | Riesgo indirecto por endpoint compartido, stale o riesgoso. | Windows Authentication Overview | Endpoint no gestionado, compartido o usado por privilegios. |
-| `Endpoint Hardening` | Configuracion debil en endpoint o protocolo. | SMB signing / NTLM overview | Cambios que afecten compatibilidad o sistemas heredados. |
-| `Endpoint Posture` | Sistema vulnerable o desactualizado. | Referencias internas de patching del cliente | Activo critico, servidor o sistema sin owner claro. |
-| `Directory Hardening` | Debilidades en LDAP, LDAPS o directorio. | LDAP signing for AD DS | Controladores de dominio, relay o cambios de GPO. |
-| `Credential Abuse` | Riesgo de abuso de credenciales. | MITRE Credential Access | Pass-the-hash, brute force, robo de credenciales o cuenta privilegiada. |
-| `Kerberos Exposure` | Exposicion relacionada con Kerberos, SPN o KRBTGT. | Kerberos authentication overview | KRBTGT, SPN en cuenta sensible o dudas sobre rotacion. |
-| `Certificate Exposure` | Riesgo por AD CS o plantillas de certificados. | AD CS overview / SpecterOps | Cualquier cambio en plantillas, enrollment o autenticacion por certificado. |
-| `Privilege Exposure` | Privilegios o cuentas con impacto alto. | Attractive Accounts for Credential Theft | Privilegios discretos, administrador, endpoint no gestionado o cuenta critica. |
-| `Lateral Movement` | Relaciones o rutas que habilitan movimiento lateral. | MITRE Lateral Movement | Attack path, admin share, sesiones privilegiadas o activo critico. |
-| `Threat Activity` | Senales de actividad adversaria o investigacion activa. | MITRE ATT&CK Enterprise tactics | Posible incidente, reconocimiento, RPC anomalo, scanning o brute force. |
-| `Unclassified` | El proyecto aun no tiene clasificacion para ese riesgo. | Revisar Falcon y escalar internamente | Siempre escalar antes de presentarlo como conclusion. |
+Valida:
 
-### Como elegir la referencia correcta
+1. Que `openpyxl` esté instalado.
+2. Que las variables obligatorias estén configuradas.
+3. Que el API Client tenga permisos correctos.
+4. Que la consola no muestre errores de autenticación, permisos, GraphQL o escritura del archivo final.
+5. Que no exista una excepción al guardar el workbook.
 
-- Si el hallazgo es de postura o configuracion, empieza por Microsoft Learn.
-- Si el hallazgo parece actividad adversaria, usa MITRE ATT&CK para explicar tactica e impacto.
-- Si el hallazgo es de autenticacion fuerte o gobierno de identidad, usa NIST y Microsoft Learn.
-- Si el hallazgo toca AD CS, Kerberos avanzado o escalamiento en Active Directory, usa SpecterOps y escala a L2.
-- Si no entiendes el riesgo despues de leer la referencia sugerida, no improvises: documenta lo visto en Falcon y pide apoyo.
+Nota técnica:
 
-### Fundamentos de identidad y autenticacion
+El workbook puede construirse aunque algunas listas vengan vacías. Por esa razón, la ausencia de datos no necesariamente impide la generación del Excel.
 
-- Windows Authentication Overview  
-  https://learn.microsoft.com/en-us/windows-server/security/windows-authentication/windows-authentication-overview
-- NIST SP 800-63-4: Digital Identity Guidelines  
-  https://www.nist.gov/publications/nist-sp-800-63-4-digital-identity-guidelines
-- Microsoft Learn: Phishing-resistant MFA  
-  https://learn.microsoft.com/en-us/security/zero-trust/sfi/phishing-resistant-mfa
-
-Uso sugerido:
-
-- entender autenticacion, Kerberos, NTLM, MFA y conceptos base antes de interpretar riesgos especificos
-- usar NIST como referencia cuando necesites justificar por que autenticacion fuerte y gobierno de identidad importan
-
-### Password Hygiene / Identity Hygiene
-
-- Microsoft Entra Password Protection  
-  https://learn.microsoft.com/en-us/entra/identity/authentication/concept-password-ban-bad
-- Microsoft Entra Password Protection for AD DS  
-  https://learn.microsoft.com/en-us/entra/identity/authentication/concept-password-ban-bad-on-premises
-- MITRE ATT&CK - Password Spraying (`T1110.003`)  
-  https://attack.mitre.org/techniques/T1110/003/
-- MITRE ATT&CK - Credential Stuffing (`T1110.004`)  
-  https://attack.mitre.org/techniques/T1110/004/
-
-Uso sugerido:
-
-- interpretar `WEAK_PASSWORD`, `WEAK_PASSWORD_POLICY`, `DUPLICATE_PASSWORD`, `INSUFFICIENT_PASSWORD_ROTATION`, `SHARED_USER`
-- explicar por que contrasenas debiles, reutilizadas o compartidas facilitan password spraying, stuffing y compromiso de cuentas
-
-### Account Lifecycle / Access Change / Behavioral Anomaly
-
-- Microsoft Entra ID Governance overview  
-  https://learn.microsoft.com/en-us/entra/id-governance/identity-governance-overview
-- What are Lifecycle Workflows?  
-  https://learn.microsoft.com/en-us/entra/id-governance/what-are-lifecycle-workflows
-- Microsoft Learn: Phishing-resistant MFA  
-  https://learn.microsoft.com/en-us/security/zero-trust/sfi/phishing-resistant-mfa
-
-Uso sugerido:
-
-- interpretar `INACTIVE_ACCOUNT`, `STALE_ACCOUNT`, `STALE_ACCOUNT_USAGE`, `NEW_SERVER_ACCESS`, `DAILY_VOLUME_ANOMALY`
-- conectar los hallazgos con procesos Joiner / Mover / Leaver, excepciones de acceso y falta de gobierno sobre cambios de identidad
-
-### Endpoint Hardening / Directory Hardening
-
-- SMB signing overview  
-  https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-signing-overview
-- LDAP signing for AD DS  
-  https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/ldap-signing
-- Windows Authentication Overview  
-  https://learn.microsoft.com/en-us/windows-server/security/windows-authentication/windows-authentication-overview
-
-Uso sugerido:
-
-- interpretar `SMB_SIGNING_DISABLED`, `LDAP_SIGNING_DISABLED`, `LDAPS_CHANNEL_BINDING`
-- apoyar conversaciones con AD, infraestructura y hardening sobre relay, integridad de trafico y autenticacion heredada
-
-### Kerberos Exposure / Credential Abuse / Lateral Movement
-
-- Kerberos authentication overview  
-  https://learn.microsoft.com/en-us/windows-server/security/kerberos/kerberos-authentication-overview
-- NTLM overview  
-  https://learn.microsoft.com/en-us/windows-server/security/kerberos/ntlm-overview
-- MITRE ATT&CK - Steal or Forge Kerberos Tickets (`T1558`)  
-  https://attack.mitre.org/techniques/T1558/
-- MITRE ATT&CK - Lateral Movement (`TA0008`)  
-  https://attack.mitre.org/tactics/TA0008/
-
-Uso sugerido:
-
-- interpretar `HAS_SPNS`, `KRBTGT_AGED_PASSWORD`, `PASS_THE_HASH`, `LATERAL_MOVEMENT`, `HAS_ATTACK_PATH`, `NTLM_MOVEMENTS`
-- relacionar el hallazgo con tickets Kerberos, abuso de credenciales, rutas de ataque y expansion del compromiso
-
-### Privilege Exposure
-
-- Microsoft Learn: Phishing-resistant MFA  
-  https://learn.microsoft.com/en-us/security/zero-trust/sfi/phishing-resistant-mfa
-- Attractive Accounts for Credential Theft  
-  https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/security-best-practices/attractive-accounts-for-credential-theft
-- MITRE ATT&CK - Privilege Escalation (`TA0004`)  
-  https://attack.mitre.org/tactics/TA0004/
-
-Uso sugerido:
-
-- interpretar `STEALTHY_PRIVILEGES`, `PRIVILEGED_MACHINE`, `PRIVILEGED_USER_USING_UNMANAGED_ENDPOINT`, `SHARED_ENDPOINT_USED_BY_PRIVILEGED_USER`
-- justificar por que cuentas privilegiadas, endpoints no gestionados y privilegios discretos deben tratarse como prioridad alta
-
-### Certificate Exposure / AD CS
-
-- Active Directory Certificate Services overview  
-  https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/active-directory-certificate-services-overview
-- SpecterOps: Certified Pre-Owned  
-  https://specterops.io/blog/2021/06/17/certified-pre-owned/
-
-Uso sugerido:
-
-- interpretar `CERTIFICATE_TEMPLATE_ALLOWS_AUTHENTICATION_AS_ANY_DOMAIN_USER`
-- entender por que una mala configuracion en AD CS puede terminar en autenticacion indebida, persistencia o escalamiento
-
-### Threat Activity / Deteccion / Contexto de adversario
-
-- MITRE ATT&CK Enterprise tactics  
-  https://attack.mitre.org/tactics/enterprise/
-- MITRE ATT&CK - Credential Access (`TA0006`)  
-  https://attack.mitre.org/tactics/TA0006/
-- MITRE ATT&CK - Lateral Movement (`TA0008`)  
-  https://attack.mitre.org/tactics/TA0008/
-- MITRE ATT&CK - Privilege Escalation (`TA0004`)  
-  https://attack.mitre.org/tactics/TA0004/
-
-Uso sugerido:
-
-- dar contexto a `CREDENTIAL_THEFT`, `CREDENTIAL_SCANNING`, `PASSWORD_BRUTE_FORCE`, `LDAP_RECONNAISSANCE`, `ANOMALOUS_RPC`, `DAILY_VOLUME_ANOMALY`
-- mapear el hallazgo a tacticas y tecnicas ATT&CK para explicarlo mejor a analistas, clientes o equipos de respuesta
-
-### Nota practica para quien redacta el reporte
-
-Una forma simple de usar estas referencias durante el analisis es:
-
-1. identificar si el hallazgo es de postura, gobierno, privilegio o actividad adversaria
-2. leer la referencia funcional primero
-3. usar ATT&CK para contextualizar impacto o cadena de ataque
-4. volver al reporte y traducir el hallazgo a lenguaje operativo:
-   riesgo, por que importa, que podria habilitar y que deberia validar el cliente
-
-</details>
-
-## Nota para analistas
-
-El reporte no reemplaza la validacion en Falcon ni la investigacion del equipo de identidad. Su objetivo es:
-
-- priorizar
-- correlacionar
-- resumir
-- y convertir hallazgos de Identity Protection en una base tecnica accionable
-
-Cuando un hallazgo indique que no hay `detalle tecnico adicional en este payload`, debe interpretarse como:
-
-- hallazgo valido reportado por CrowdStrike
-- contexto tecnico limitado en la consulta actual
-- necesidad de complementar con Falcon u otras fuentes antes de cerrar remediacion
-
-## Limitaciones conocidas
-
-- El proyecto depende del esquema actual que devuelve CrowdStrike Identity Protection por GraphQL.
-- No todos los riesgos devuelven el mismo nivel de detalle; `HAS_ATTACK_PATH` suele ser mas rico que otros tipos.
-- Para varios riesgos, CrowdStrike solo devuelve `type`, `__typename` y la severidad de entidad, por lo que parte del contexto sigue siendo interpretativo.
-- La severidad mostrada en Excel corresponde a severidad de entidad, no necesariamente a una severidad independiente por cada `riskFactor`.
-- Si CrowdStrike cambia `__typename`, campos o estructura de `attackPath`, el pipeline puede seguir funcionando, pero aumentaran los hallazgos en auditoria o bajara la calidad del parseo.
-- El proyecto prioriza continuidad del pipeline sobre fallo duro: ante riesgos nuevos o estructuras no soportadas, registra auditoria y continua.
 
 ### Error HTTP 403 `scope not permitted`
 
-Valida que el API client tenga:
+Valida que el API Client tenga el permiso:
 
-- `Identity Protection GraphQL = Write`
+```text
+Identity Protection GraphQL = Write
+```
 
-### Error de links Falcon incorrectos
+Este permiso es requerido para el endpoint GraphQL de Identity Protection.
 
-Verifica que `FALCON_BASE_URL` sea una API URL regional, por ejemplo:
+### Error de autenticación
 
-- `https://api.crowdstrike.com`
-- `https://api.us-2.crowdstrike.com`
+Valida:
 
-## Consideraciones importantes
+* `FALCON_CLIENT_ID`
+* `FALCON_CLIENT_SECRET`
+* región configurada en `FALCON_BASE_URL`
+* permisos del API Client
+* que el tenant tenga Identity Protection habilitado
 
-- el proyecto no depende del export manual desde la consola web
-- la paginacion se hace automaticamente por `pageInfo.hasNextPage` y `pageInfo.endCursor`
-- el dominio objetivo no va hardcodeado en el codigo
-- si aparece un riesgo nuevo, el pipeline no se rompe: se registra en auditoria y continua
-- el repositorio no debe incluir resultados reales del tenant por confidencialidad
+### Enlaces Falcon incorrectos en el Excel
+
+Verifica que `FALCON_BASE_URL` sea una URL regional de API válida.
+
+Ejemplos:
+
+```text
+https://api.crowdstrike.com
+https://api.us-2.crowdstrike.com
+```
+
+No uses la URL de consola como valor de `FALCON_BASE_URL`.
+
+### Aparecen riesgos `Unclassified`
+
+Significa que el proyecto recibió un `risk_type` que aún no está catalogado localmente.
+
+Acción recomendada:
+
+1. Revisar el payload raw si el modo de artefactos lo permite.
+2. Validar el hallazgo directamente en Falcon.
+3. Confirmar significado operativo del riesgo.
+4. Agregar metadata en `risk_catalog.py`.
+5. Crear o ajustar parser si el payload contiene estructura útil.
+
+### Aparecen `Parser errors` o `Structure issues`
+
+No se recomienda entregar el reporte como final sin revisión.
+
+Acción recomendada:
+
+1. Ejecutar temporalmente con `FALCON_ARTIFACT_MODE="debug"`.
+2. Revisar archivos de auditoría.
+3. Identificar el `risk_type` afectado.
+4. Validar si CrowdStrike cambió estructura, `__typename` o campos del payload.
+5. Ajustar parser o catálogo según corresponda.
+
+---
+
+## Limitaciones conocidas
+
+* El proyecto depende del esquema actual que devuelve CrowdStrike Identity Protection por GraphQL.
+* No todos los riesgos devuelven el mismo nivel de detalle.
+* Algunos riesgos pueden devolver únicamente `type`, `__typename` y severidad de entidad.
+* La severidad mostrada corresponde a la entidad, no necesariamente a cada `riskFactor` individual.
+* Si CrowdStrike cambia `__typename`, campos o estructura de `attackPath`, puede aumentar la cantidad de hallazgos en auditoría.
+* El proyecto prioriza continuidad ante riesgos nuevos, parsers no soportados o estructuras inesperadas dentro de payloads válidos. En esos casos registra auditoría y continúa cuando es posible.
+* Errores de autenticación, permisos, HTTP, GraphQL o fallos críticos de consulta pueden detener la ejecución, ya que impiden obtener datos válidos desde CrowdStrike.
+* El reporte no reemplaza la validación en Falcon ni la investigación del equipo de identidad.
+* Las recomendaciones generadas deben validarse con owner, criticidad, uso legítimo y ventana de cambio antes de remediar.
+
+---
+
+## Consideraciones de seguridad
+
+* No incluir credenciales reales en el repositorio.
+* No versionar archivos reales generados desde tenants de clientes.
+* No subir contenido de `output/` si contiene evidencia sensible.
+* Usar `FALCON_ARTIFACT_MODE="final_only"` para corridas operativas normales.
+* Usar `debug` solo cuando sea necesario investigar errores o crear soporte para nuevos parsers.
+* Validar cliente, dominio y región antes de cada ejecución.
+* Evitar compartir artefactos raw fuera del equipo autorizado.
+
+Recomendación de `.gitignore`:
+
+```gitignore
+.venv/
+__pycache__/
+*.pyc
+
+.env
+output/
+*.xlsx
+
+*_raw.json
+*_detail_raw.json
+*_discovery_raw.json
+*_raw_samples.json
+```
+
+---
 
 ## Mejoras futuras
 
-- agregar carga automatica de `.env` si en algun momento se desea ese flujo
-- agregar tests unitarios para parsers y validaciones
-- enriquecer aun mas los parsers especializados
-- soportar multiples dominios o ejecucion por lote
-- generar PDF o documento ejecutivo adicional
+Posibles mejoras del proyecto:
+
+* Carga automática opcional de `.env`.
+* Tests unitarios para parsers y validaciones.
+* Mayor cobertura de parsers especializados.
+* Soporte para múltiples dominios en una misma ejecución.
+* Ejecución por lote para entornos MSSP.
+* Generación de PDF ejecutivo adicional.
+* Exportación opcional a formatos compatibles con herramientas de ticketing.
+* Validación previa de permisos antes de ejecutar consultas principales.
+* Modo dry-run para validar configuración sin generar reporte.
+
+---
+
+## Referencias
+
+* [FalconPy SDK para Python](https://github.com/CrowdStrike/falconpy)
+* [Documentación de FalconPy](https://www.falconpy.io/)
+* [Identity Protection en FalconPy](https://www.falconpy.io/Service-Collections/Identity-Protection.html)
+* [CrowdStrike Developer Center](https://developer.crowdstrike.com/)
+* [CrowdStrike OpenAPI Docs](https://developer.crowdstrike.com/docs/openapi/)
+* [Python venv](https://docs.python.org/3/library/venv.html)
+* [PowerShell Set-ExecutionPolicy](https://learn.microsoft.com/powershell/module/microsoft.powershell.security/set-executionpolicy)
+
+---
+
+## Nota para analistas
+
+El reporte no reemplaza la validación en Falcon ni la investigación del equipo de identidad.
+
+Su objetivo es:
+
+* priorizar hallazgos;
+* correlacionar riesgos;
+* resumir evidencia;
+* facilitar revisión técnica;
+* apoyar seguimiento operativo;
+* convertir hallazgos de Identity Protection en una base accionable.
+
+Cuando un hallazgo indique que no hay detalle técnico adicional en el payload, debe interpretarse como:
+
+* hallazgo válido reportado por CrowdStrike;
+* contexto técnico limitado en la consulta actual;
+* necesidad de complementar con Falcon u otras fuentes antes de cerrar la remediación.
